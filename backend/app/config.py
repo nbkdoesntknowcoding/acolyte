@@ -18,12 +18,29 @@ class Settings(BaseSettings):
 
     # Clerk Auth
     CLERK_SECRET_KEY: str = ""
+    CLERK_PUBLISHABLE_KEY: str = ""
     CLERK_JWKS_URL: str = ""
     CLERK_ISSUER: str = ""
 
-    # Permify
-    PERMIFY_HOST: str = "localhost"
-    PERMIFY_PORT: int = 3476
+    # Permify (hosted on Fly.io — use `flyctl proxy 3476:3476 -a acolyte-permify` for local dev)
+    PERMIFY_ENDPOINT: str = "localhost"
+    PERMIFY_PORT_HTTP: int = 3476
+    PERMIFY_PORT_GRPC: int = 3478
+    PERMIFY_API_KEY: str = ""
+
+    @property
+    def permify_http_url(self) -> str:
+        """Full Permify HTTP base URL."""
+        if self.PERMIFY_ENDPOINT in ("localhost", "127.0.0.1"):
+            return f"http://{self.PERMIFY_ENDPOINT}:{self.PERMIFY_PORT_HTTP}"
+        return f"https://{self.PERMIFY_ENDPOINT}"
+
+    @property
+    def permify_grpc_target(self) -> str:
+        """Permify gRPC target for the SDK."""
+        if self.PERMIFY_ENDPOINT in ("localhost", "127.0.0.1"):
+            return f"{self.PERMIFY_ENDPOINT}:{self.PERMIFY_PORT_GRPC}"
+        return f"{self.PERMIFY_ENDPOINT}:443"
 
     # AI Keys
     ANTHROPIC_API_KEY: str = ""

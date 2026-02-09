@@ -1,0 +1,135 @@
+// Acolyte AI — Permify Authorization Schema
+// NMC Medical College Hierarchy: Trust → College → Department → Course
+//
+// This schema models Zanzibar-style ReBAC for multi-tenant medical education.
+// Every permission check traverses the hierarchy — a dean at the college level
+// automatically has access to all departments and courses beneath.
+
+// ============================================================================
+// Trust — top-level entity for multi-college groups
+// e.g. Rajiv Gandhi University of Health Sciences, Manipal Group
+// ============================================================================
+entity trust {
+    relation owner @user
+    relation admin @user
+
+    permission can_manage = owner or admin
+}
+
+// ============================================================================
+// College — the primary tenant boundary (maps to college_id in RLS)
+// Each college belongs to a trust. 820+ NMC-recognized colleges in India.
+// ============================================================================
+entity college {
+    relation parent @trust
+    relation dean @user
+    relation admin @user
+    relation compliance_officer @user
+    relation faculty @user
+    relation student @user
+
+    permission can_manage = dean or admin or parent.can_manage
+    permission can_view_compliance = compliance_officer or can_manage
+    permission can_view_analytics = can_manage or compliance_officer
+    permission can_view_finance = admin or dean or parent.can_manage
+    permission can_manage_students = admin or can_manage
+    permission can_manage_faculty = admin or can_manage
+}
+
+// ============================================================================
+// Department — 19 NMC departments (Anatomy, Physiology, Biochemistry, etc.)
+// Each department has an HOD and multiple faculty members.
+// ============================================================================
+entity department {
+    relation parent @college
+    relation hod @user
+    relation faculty @user
+
+    permission can_manage = hod or parent.can_manage
+    permission can_assign_faculty = can_manage
+    permission can_view = faculty or can_manage
+    permission can_view_students = faculty or hod or parent.can_manage
+}
+
+// ============================================================================
+// Course — a subject/course within a department
+// e.g. "General Anatomy" under Anatomy department
+// ============================================================================
+entity course {
+    relation parent @department
+    relation instructor @user
+    relation student @user
+
+    permission can_teach = instructor or parent.can_manage
+    permission can_grade = instructor or parent.hod or parent.parent.can_manage
+    permission can_view = student or can_teach
+    permission can_edit = can_teach
+    permission can_enroll_students = parent.can_manage
+}
+
+// ============================================================================
+// Student Record — owned by student, visible to faculty in the course
+// ============================================================================
+entity student_record {
+    relation owner @user
+    relation parent_course @course
+
+    permission can_view = owner or parent_course.can_teach
+    permission can_edit = owner
+    permission can_grade = parent_course.can_grade
+}
+
+// ============================================================================
+// Competency Logbook — CBME competency tracking (critical for NMC)
+// Faculty sign-off required for each competency. Offline-capable via PowerSync.
+// ============================================================================
+entity competency_logbook {
+    relation owner @user
+    relation parent_course @course
+    relation signed_by @user
+
+    permission can_view = owner or parent_course.can_teach
+    permission can_submit = owner
+    permission can_sign = parent_course.instructor or parent_course.parent.hod
+}
+
+// ============================================================================
+// Compliance Report — NMC/NAAC/NBA documents at the college level
+// Only compliance officers and college leadership can access.
+// ============================================================================
+entity compliance_report {
+    relation parent @college
+    relation created_by @user
+
+    permission can_view = parent.can_view_compliance
+    permission can_edit = parent.compliance_officer or parent.can_manage
+    permission can_submit = parent.dean or parent.can_manage
+}
+
+// ============================================================================
+// Assessment — exams, tests, and evaluations
+// Created by faculty, approved by HOD, attempted by students.
+// ============================================================================
+entity assessment {
+    relation parent_course @course
+    relation created_by @user
+
+    permission can_create = parent_course.can_teach
+    permission can_edit = created_by or parent_course.parent.can_manage
+    permission can_view_results = parent_course.can_grade
+    permission can_attempt = parent_course.student
+    permission can_approve = parent_course.parent.hod or parent_course.parent.parent.can_manage
+}
+
+// ============================================================================
+// Fee Record — student fee tracking
+// Visible to student + finance staff.
+// ============================================================================
+entity fee_record {
+    relation parent @college
+    relation student @user
+
+    permission can_view = student or parent.can_view_finance
+    permission can_edit = parent.admin or parent.can_manage
+    permission can_approve_waiver = parent.dean or parent.can_manage
+}

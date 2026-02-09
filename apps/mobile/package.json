@@ -11,8 +11,6 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@acolyte/shared": "*",
-    "@acolyte/api-client": "*",
     "@clerk/clerk-expo": "^2.4.0",
     "@expo/vector-icons": "^14.0.0",
     "expo": "~52.0.0",
@@ -21,6 +19,7 @@
     "expo-router": "~4.0.0",
     "expo-secure-store": "~14.0.0",
     "expo-status-bar": "~2.0.0",
+    "expo-web-browser": "~14.0.0",
     "nativewind": "^4.1.0",
     "react": "19.0.0",
     "react-native": "0.76.0",

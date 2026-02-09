@@ -12,11 +12,24 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const body = (
+    <html lang="en" className="dark">
+      <body className={`${inter.className} bg-dark-bg text-white antialiased`}>{children}</body>
+    </html>
+  );
+
+  const clerkKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  if (!clerkKey || !clerkKey.startsWith('pk_')) {
+    return body;
+  }
+
   return (
-    <ClerkProvider>
-      <html lang="en" className="dark">
-        <body className={`${inter.className} bg-dark-bg text-white antialiased`}>{children}</body>
-      </html>
+    <ClerkProvider
+      signInUrl="/sign-in"
+      signUpUrl="/sign-up"
+      afterSignOutUrl="/sign-in"
+    >
+      {body}
     </ClerkProvider>
   );
 }

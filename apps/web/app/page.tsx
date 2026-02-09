@@ -1,12 +1,13 @@
-import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
+import { getCurrentUser, getDashboardPath } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 export default async function Home() {
-  const { userId } = await auth();
+  const user = await getCurrentUser();
 
-  if (userId) {
-    // TODO: Redirect based on user role from Permify
-    redirect('/student');
+  if (user) {
+    redirect(getDashboardPath(user.role));
   }
 
   redirect('/sign-in');

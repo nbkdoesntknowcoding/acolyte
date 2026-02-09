@@ -1,7 +1,37 @@
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@clerk/clerk-expo';
+import { useAuthenticatedUser, type UserRole } from '@/lib/auth';
+
+type TabConfig = {
+  name: string;
+  title: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  roles: UserRole[] | 'all';
+};
+
+const TABS: TabConfig[] = [
+  { name: 'home/index', title: 'Home', icon: 'home', roles: 'all' },
+  { name: 'study/index', title: 'Study', icon: 'book', roles: ['student'] },
+  { name: 'practice/index', title: 'Practice', icon: 'clipboard', roles: ['student'] },
+  { name: 'logbook/index', title: 'Logbook', icon: 'journal', roles: ['student', 'faculty', 'hod'] },
+  { name: 'profile/index', title: 'Profile', icon: 'person', roles: 'all' },
+];
+
+function isTabVisible(tab: TabConfig, role: UserRole): boolean {
+  if (tab.roles === 'all') return true;
+  return tab.roles.includes(role);
+}
 
 export default function TabsLayout() {
+  const { isSignedIn, isLoaded } = useAuth();
+  const { user } = useAuthenticatedUser();
+
+  if (!isLoaded) return null;
+  if (!isSignedIn) return <Redirect href="/(auth)/sign-in" />;
+
+  const role = user?.role || 'student';
+
   return (
     <Tabs
       screenOptions={{
@@ -17,43 +47,20 @@ export default function TabsLayout() {
         headerTintColor: '#FFFFFF',
       }}
     >
-      <Tabs.Screen
-        name="home/index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="study/index"
-        options={{
-          title: 'Study',
-          tabBarIcon: ({ color, size }) => <Ionicons name="book" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="practice/index"
-        options={{
-          title: 'Practice',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="clipboard" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="logbook/index"
-        options={{
-          title: 'Logbook',
-          tabBarIcon: ({ color, size }) => <Ionicons name="journal" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="profile/index"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
-        }}
-      />
+      {TABS.map((tab) => (
+        <Tabs.Screen
+          key={tab.name}
+          name={tab.name}
+          options={{
+            title: tab.title,
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name={tab.icon} size={size} color={color} />
+            ),
+            // Hide tabs that aren't relevant for this role
+            href: isTabVisible(tab, role) ? undefined : null,
+          }}
+        />
+      ))}
     </Tabs>
   );
 }

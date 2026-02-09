@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,32 +10,63 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native';
-import { useSignIn, useOAuth } from '@clerk/clerk-expo';
+import { useSignUp, useOAuth } from '@clerk/clerk-expo';
 import { useRouter, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 
-// Warm up the browser for OAuth
 WebBrowser.maybeCompleteAuthSession();
 
-export default function SignInScreen() {
-  const { signIn, setActive, isLoaded } = useSignIn();
+export default function SignUpScreen() {
+  const { signUp, setActive, isLoaded } = useSignUp();
   const { startOAuthFlow } = useOAuth({ strategy: 'oauth_google' });
   const router = useRouter();
 
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleEmailSignIn = useCallback(async () => {
-    if (!isLoaded || !signIn) return;
+  // Email verification state
+  const [pendingVerification, setPendingVerification] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+
+  const handleSignUp = useCallback(async () => {
+    if (!isLoaded || !signUp) return;
     setError('');
     setLoading(true);
 
     try {
-      const result = await signIn.create({ identifier: email, password });
+      await signUp.create({
+        firstName,
+        lastName,
+        emailAddress: email,
+        password,
+      });
+
+      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+      setPendingVerification(true);
+    } catch (err: any) {
+      const message =
+        err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || 'Sign up failed';
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }, [isLoaded, signUp, firstName, lastName, email, password]);
+
+  const handleVerification = useCallback(async () => {
+    if (!isLoaded || !signUp) return;
+    setError('');
+    setLoading(true);
+
+    try {
+      const result = await signUp.attemptEmailAddressVerification({
+        code: verificationCode,
+      });
 
       if (result.status === 'complete') {
         await setActive({ session: result.createdSessionId });
@@ -43,14 +74,14 @@ export default function SignInScreen() {
       }
     } catch (err: any) {
       const message =
-        err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || 'Sign in failed';
+        err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || 'Verification failed';
       setError(message);
     } finally {
       setLoading(false);
     }
-  }, [isLoaded, signIn, email, password, setActive, router]);
+  }, [isLoaded, signUp, verificationCode, setActive, router]);
 
-  const handleGoogleSignIn = useCallback(async () => {
+  const handleGoogleSignUp = useCallback(async () => {
     setError('');
     setLoading(true);
 
@@ -62,13 +93,70 @@ export default function SignInScreen() {
         router.replace('/(tabs)/home');
       }
     } catch (err: any) {
-      const message = err?.errors?.[0]?.longMessage || 'Google sign in failed';
+      const message = err?.errors?.[0]?.longMessage || 'Google sign up failed';
       setError(message);
     } finally {
       setLoading(false);
     }
   }, [startOAuthFlow, router]);
 
+  // Verification code screen
+  if (pendingVerification) {
+    return (
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.header}>
+            <View style={styles.logoContainer}>
+              <Ionicons name="mail" size={48} color="#00C853" />
+            </View>
+            <Text style={styles.title}>Verify Email</Text>
+            <Text style={styles.subtitle}>We sent a code to {email}</Text>
+          </View>
+
+          {error ? (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle" size={16} color="#EF4444" />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Verification Code</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter 6-digit code"
+              placeholderTextColor="#64748B"
+              value={verificationCode}
+              onChangeText={setVerificationCode}
+              keyboardType="number-pad"
+              maxLength={6}
+              autoFocus
+            />
+          </View>
+
+          <TouchableOpacity
+            style={[styles.signUpButton, loading && styles.signUpButtonDisabled]}
+            onPress={handleVerification}
+            disabled={loading || verificationCode.length < 6}
+          >
+            {loading ? (
+              <ActivityIndicator color="#0A0A0A" />
+            ) : (
+              <Text style={styles.signUpButtonText}>Verify</Text>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
+
+  // Sign up form
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -80,11 +168,10 @@ export default function SignInScreen() {
           <View style={styles.logoContainer}>
             <Ionicons name="school" size={48} color="#00C853" />
           </View>
-          <Text style={styles.title}>Acolyte</Text>
-          <Text style={styles.subtitle}>Sign in to continue</Text>
+          <Text style={styles.title}>Create Account</Text>
+          <Text style={styles.subtitle}>Join Acolyte to start learning</Text>
         </View>
 
-        {/* Error message */}
         {error ? (
           <View style={styles.errorBox}>
             <Ionicons name="alert-circle" size={16} color="#EF4444" />
@@ -93,7 +180,7 @@ export default function SignInScreen() {
         ) : null}
 
         {/* Google OAuth */}
-        <TouchableOpacity style={styles.googleButton} onPress={handleGoogleSignIn} disabled={loading}>
+        <TouchableOpacity style={styles.googleButton} onPress={handleGoogleSignUp} disabled={loading}>
           <Ionicons name="logo-google" size={20} color="#FFFFFF" />
           <Text style={styles.googleButtonText}>Continue with Google</Text>
         </TouchableOpacity>
@@ -103,6 +190,35 @@ export default function SignInScreen() {
           <View style={styles.dividerLine} />
           <Text style={styles.dividerText}>or</Text>
           <View style={styles.dividerLine} />
+        </View>
+
+        {/* Name inputs */}
+        <View style={styles.nameRow}>
+          <View style={[styles.inputGroup, { flex: 1 }]}>
+            <Text style={styles.label}>First Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="First"
+              placeholderTextColor="#64748B"
+              value={firstName}
+              onChangeText={setFirstName}
+              textContentType="givenName"
+              autoComplete="given-name"
+            />
+          </View>
+          <View style={{ width: 12 }} />
+          <View style={[styles.inputGroup, { flex: 1 }]}>
+            <Text style={styles.label}>Last Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Last"
+              placeholderTextColor="#64748B"
+              value={lastName}
+              onChangeText={setLastName}
+              textContentType="familyName"
+              autoComplete="family-name"
+            />
+          </View>
         </View>
 
         {/* Email input */}
@@ -127,13 +243,13 @@ export default function SignInScreen() {
           <View style={styles.passwordContainer}>
             <TextInput
               style={styles.passwordInput}
-              placeholder="Enter your password"
+              placeholder="Create a password"
               placeholderTextColor="#64748B"
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
-              textContentType="password"
-              autoComplete="password"
+              textContentType="newPassword"
+              autoComplete="new-password"
             />
             <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(!showPassword)}>
               <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#64748B" />
@@ -141,25 +257,25 @@ export default function SignInScreen() {
           </View>
         </View>
 
-        {/* Sign In button */}
+        {/* Sign Up button */}
         <TouchableOpacity
-          style={[styles.signInButton, loading && styles.signInButtonDisabled]}
-          onPress={handleEmailSignIn}
+          style={[styles.signUpButton, loading && styles.signUpButtonDisabled]}
+          onPress={handleSignUp}
           disabled={loading || !email || !password}
         >
           {loading ? (
             <ActivityIndicator color="#0A0A0A" />
           ) : (
-            <Text style={styles.signInButtonText}>Sign In</Text>
+            <Text style={styles.signUpButtonText}>Create Account</Text>
           )}
         </TouchableOpacity>
 
-        {/* Sign Up link */}
+        {/* Sign In link */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Don't have an account? </Text>
-          <Link href="/(auth)/sign-up" asChild>
+          <Text style={styles.footerText}>Already have an account? </Text>
+          <Link href="/(auth)/sign-in" asChild>
             <TouchableOpacity>
-              <Text style={styles.footerLink}>Sign Up</Text>
+              <Text style={styles.footerLink}>Sign In</Text>
             </TouchableOpacity>
           </Link>
         </View>
@@ -247,6 +363,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     fontSize: 14,
   },
+  nameRow: {
+    flexDirection: 'row',
+  },
   inputGroup: {
     marginBottom: 16,
   },
@@ -284,17 +403,17 @@ const styles = StyleSheet.create({
   eyeButton: {
     paddingHorizontal: 14,
   },
-  signInButton: {
+  signUpButton: {
     backgroundColor: '#00C853',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 8,
   },
-  signInButtonDisabled: {
+  signUpButtonDisabled: {
     opacity: 0.5,
   },
-  signInButtonText: {
+  signUpButtonText: {
     color: '#0A0A0A',
     fontSize: 16,
     fontWeight: '700',

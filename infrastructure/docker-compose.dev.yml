@@ -1,3 +1,8 @@
+# Permify is hosted on Fly.io (acolyte-permify) — NOT in this compose file.
+# For local dev, proxy the remote instance to localhost:
+#   flyctl proxy 3476:3476 -a acolyte-permify
+# This tunnels Fly.io Permify to localhost:3476 so the backend can connect.
+
 services:
   postgres:
     image: pgvector/pgvector:pg16
