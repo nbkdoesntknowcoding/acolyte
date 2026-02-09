@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: acolyte
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init-extensions.sql:/docker-entrypoint-initdb.d/init-extensions.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Optional: Langfuse for AI observability
+  # langfuse:
+  #   image: langfuse/langfuse:latest
+  #   ports:
+  #     - "3001:3000"
+  #   environment:
+  #     DATABASE_URL: postgresql://postgres:postgres@postgres:5432/langfuse
+  #     NEXTAUTH_SECRET: mysecret
+  #     SALT: mysalt
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+
+volumes:
+  pgdata:

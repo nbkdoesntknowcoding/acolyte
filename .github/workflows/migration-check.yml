@@ -1,0 +1,30 @@
+name: Migration Check
+on:
+  pull_request:
+    paths:
+      - 'backend/alembic/**'
+      - 'backend/app/**/models.py'
+
+jobs:
+  validate-migrations:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: acolyte_test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install -r backend/requirements.txt
+      - run: cd backend && alembic upgrade head
+      - run: cd backend && alembic check
+      - run: cd backend && alembic downgrade -1
+      - run: cd backend && alembic upgrade head
+    env:
+      DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/acolyte_test

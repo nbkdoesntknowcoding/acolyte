@@ -1,0 +1,13 @@
+{
+  "name": "@acolyte/ui-tokens",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/tokens.ts",
+  "types": "./src/tokens.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

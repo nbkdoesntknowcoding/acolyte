@@ -1,0 +1,1 @@
+"""AEBAS attendance report generator."""

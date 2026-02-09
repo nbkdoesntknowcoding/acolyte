@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-500: #00C853;
+  --dark-bg: #0A0A0A;
+  --dark-surface: #111111;
+  --dark-elevated: #1A1A1A;
+  --dark-border: #2A2A2A;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}

@@ -1,0 +1,21 @@
+name: Mobile Release
+on:
+  push:
+    tags:
+      - 'v*-mobile'
+
+jobs:
+  build-and-submit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npm ci
+      - run: cd apps/mobile && eas build --platform all --non-interactive --profile production
+      - run: cd apps/mobile && eas submit --platform all --non-interactive
