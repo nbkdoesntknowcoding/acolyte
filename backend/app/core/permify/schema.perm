@@ -4,6 +4,15 @@
 // This schema models Zanzibar-style ReBAC for multi-tenant medical education.
 // Every permission check traverses the hierarchy — a dean at the college level
 // automatically has access to all departments and courses beneath.
+//
+// NOTE: Permify does not support multi-level relation walks (e.g. parent.parent.x).
+// We use intermediate permissions to flatten hierarchy traversal into single-step lookups.
+
+// ============================================================================
+// User — base entity referenced by all other entities via @user
+// Permify requires this to be explicitly defined.
+// ============================================================================
+entity user {}
 
 // ============================================================================
 // Trust — top-level entity for multi-college groups
@@ -49,6 +58,9 @@ entity department {
     permission can_assign_faculty = can_manage
     permission can_view = faculty or can_manage
     permission can_view_students = faculty or hod or parent.can_manage
+
+    // Intermediate: expose college-level permissions for downstream entities
+    permission college_can_manage = parent.can_manage
 }
 
 // ============================================================================
@@ -61,10 +73,15 @@ entity course {
     relation student @user
 
     permission can_teach = instructor or parent.can_manage
-    permission can_grade = instructor or parent.hod or parent.parent.can_manage
+    permission can_grade = instructor or parent.hod or parent.college_can_manage
     permission can_view = student or can_teach
     permission can_edit = can_teach
     permission can_enroll_students = parent.can_manage
+
+    // Intermediate: expose dept/college-level permissions for downstream entities
+    permission dept_can_manage = parent.can_manage
+    permission dept_hod = parent.hod
+    permission college_can_manage = parent.college_can_manage
 }
 
 // ============================================================================
@@ -90,7 +107,7 @@ entity competency_logbook {
 
     permission can_view = owner or parent_course.can_teach
     permission can_submit = owner
-    permission can_sign = parent_course.instructor or parent_course.parent.hod
+    permission can_sign = parent_course.instructor or parent_course.dept_hod
 }
 
 // ============================================================================
@@ -115,10 +132,10 @@ entity assessment {
     relation created_by @user
 
     permission can_create = parent_course.can_teach
-    permission can_edit = created_by or parent_course.parent.can_manage
+    permission can_edit = created_by or parent_course.dept_can_manage
     permission can_view_results = parent_course.can_grade
     permission can_attempt = parent_course.student
-    permission can_approve = parent_course.parent.hod or parent_course.parent.parent.can_manage
+    permission can_approve = parent_course.dept_hod or parent_course.college_can_manage
 }
 
 // ============================================================================

@@ -1,0 +1,65 @@
+app = "acolyte-permify"
+primary_region = "bom"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[processes]
+  app = "serve"
+
+[env]
+  PERMIFY_DATABASE_ENGINE = "postgres"
+  PERMIFY_DATABASE_AUTO_MIGRATE = "true"
+  PERMIFY_DATABASE_MAX_OPEN_CONNECTIONS = "20"
+  PERMIFY_LOG_LEVEL = "info"
+  PERMIFY_HTTP_PORT = "3476"
+  PERMIFY_AUTHN_ENABLED = "true"
+  PERMIFY_AUTHN_METHOD = "preshared"
+
+# HTTP (REST API) — exposed publicly for health checks and backend access
+[[services]]
+  internal_port = 3476
+  protocol = "tcp"
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 250
+    soft_limit = 200
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+  [[services.http_checks]]
+    interval = 15000
+    grace_period = "10s"
+    method = "get"
+    path = "/healthz"
+    protocol = "http"
+    timeout = 5000
+
+# gRPC — not exposed publicly, accessible via Fly private networking
+# Backend uses REST (port 3476) so gRPC is internal-only
+[[services]]
+  internal_port = 3478
+  protocol = "tcp"
+  processes = ["app"]
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 250
+    soft_limit = 200
+
+  [[services.ports]]
+    handlers = ["tls"]
+    port = 3478
+    tls_options = { alpn = ["h2"] }
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
