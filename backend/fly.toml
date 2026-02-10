@@ -18,13 +18,12 @@ primary_region = "bom"
   min_machines_running = 1
   processes = ["app"]
 
-[http_service.checks]
-  [http_service.checks.health]
-    interval = "30s"
-    timeout = "5s"
-    grace_period = "120s"
-    method = "GET"
-    path = "/health"
+[[http_service.checks]]
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "120s"
+  method = "GET"
+  path = "/health"
 
 [[vm]]
   memory = "1gb"
