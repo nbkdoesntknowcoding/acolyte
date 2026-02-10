@@ -37,6 +37,19 @@ class ValidationError(HTTPException):
         )
 
 
+class DuplicateError(HTTPException):
+    def __init__(self, resource: str, field: str = "", value: str = ""):
+        detail = f"{resource} already exists"
+        if field and value:
+            detail = f"{resource} with {field}='{value}' already exists"
+        elif field:
+            detail = f"{resource} with duplicate {field}"
+        super().__init__(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=detail,
+        )
+
+
 class AIServiceError(HTTPException):
     def __init__(self, detail: str = "AI service unavailable"):
         super().__init__(
