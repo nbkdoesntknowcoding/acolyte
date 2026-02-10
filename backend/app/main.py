@@ -29,7 +29,27 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     logger.info("Starting Acolyte API [%s]", settings.APP_ENV)
 
-    # Initialize Permify client and push schema
+    # --- Redis connectivity check ---
+    redis_ok = False
+    try:
+        import redis
+
+        redis_url = settings.REDIS_URL or ""
+        if redis_url:
+            r = redis.from_url(redis_url, decode_responses=True, socket_timeout=5)
+            r.ping()
+            r.close()
+            redis_ok = True
+            # Log host only (redact password)
+            redis_host = redis_url.split("@")[-1] if "@" in redis_url else redis_url
+            logger.info("Redis connected at %s", redis_host)
+        else:
+            logger.warning("REDIS_URL not set — Celery tasks will not work")
+    except Exception as e:
+        logger.warning("Redis unreachable: %s — Celery tasks will not work", e)
+    app.state.redis_ok = redis_ok
+
+    # --- Permify connectivity + schema sync ---
     permify = PermifyClient(settings)
     app.state.permify = permify
 
@@ -46,6 +66,9 @@ async def lifespan(app: FastAPI):
             "Permify unreachable at %s — permission checks will fail closed (deny all)",
             permify._base_url,
         )
+
+    if redis_ok and healthy:
+        logger.info("All dependencies ready — Celery worker/beat can process tasks")
 
     yield
 
@@ -97,6 +120,7 @@ app.include_router(webhooks_router)  # Mounted at /api/v1/webhooks/clerk/*
 async def health_check():
     permify: PermifyClient | None = getattr(app.state, "permify", None)
     permify_ok = await permify.health_check() if permify else False
+    redis_ok = getattr(app.state, "redis_ok", False)
 
     return {
         "status": "healthy",
@@ -105,6 +129,7 @@ async def health_check():
         "version": "0.1.0",
         "dependencies": {
             "permify": "connected" if permify_ok else "unreachable",
+            "redis": "connected" if redis_ok else "unreachable",
         },
     }
 
