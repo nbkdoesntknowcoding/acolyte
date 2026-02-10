@@ -2,8 +2,10 @@ import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.exc import IntegrityError
 
 from app.config import get_settings
 from app.core.permify.client import PermifyClient
@@ -84,6 +86,35 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+# ---------------------------------------------------------------------------
+# Global exception handlers — standard error envelope for ALL errors
+#
+# API Response Contract (for frontend):
+# SUCCESS:   Routes return Pydantic models directly or
+#            {"data": ..., "meta": {"timestamp": "..."}} via response helpers
+# PAGINATED: {"data": [...], "meta": {"total": N, "page": N, "page_size": N, "total_pages": N}}
+# ERROR:     {"error": {"code": "ERROR_CODE", "message": "Human readable", "details": {...} | null}}
+#
+# See app/shared/error_handlers.py for handler implementations.
+# See app/shared/exceptions.py for the exception hierarchy.
+# See app/shared/response.py for success/paginated response helpers.
+# ---------------------------------------------------------------------------
+
+from app.shared.exceptions import AcolyteException
+from app.shared.error_handlers import (
+    acolyte_exception_handler,
+    http_exception_handler,
+    integrity_error_handler,
+    unhandled_exception_handler,
+    validation_exception_handler,
+)
+
+app.add_exception_handler(AcolyteException, acolyte_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(IntegrityError, integrity_error_handler)
+app.add_exception_handler(HTTPException, http_exception_handler)
+app.add_exception_handler(Exception, unhandled_exception_handler)
 
 # ---------------------------------------------------------------------------
 # Middleware stack (applied in REVERSE order — last added runs first)

@@ -40,11 +40,17 @@ export interface PaginatedResponse<T> {
   total_pages: number;
 }
 
-/** Error response from API */
-export interface ApiError {
-  detail: string;
+/** Error detail from API — the inner error object */
+export interface ApiErrorDetail {
   code: string;
+  message: string;
+  details?: Record<string, unknown> | Array<{ field: string; message: string; type: string }> | null;
   timestamp: string;
+}
+
+/** Top-level error envelope: {"error": {...}} */
+export interface ApiError {
+  error: ApiErrorDetail;
 }
 
 /** Authenticated user context */

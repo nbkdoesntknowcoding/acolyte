@@ -23,7 +23,7 @@ from app.engines.admin.schemas import (
     DepartmentResponse,
     DepartmentUpdate,
 )
-from app.shared.exceptions import DuplicateError, ResourceNotFoundError
+from app.shared.exceptions import DuplicateException, NotFoundException
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class DepartmentService:
             await self.db.flush()
         except IntegrityError:
             await self.db.rollback()
-            raise DuplicateError("Department", "code", data.code.upper())
+            raise DuplicateException("Department", "code", data.code.upper())
 
         await self.db.refresh(department)
         return DepartmentResponse.model_validate(department)
@@ -77,7 +77,7 @@ class DepartmentService:
         )
         department = result.scalar_one_or_none()
         if department is None:
-            raise ResourceNotFoundError("Department", str(department_id))
+            raise NotFoundException("Department", str(department_id))
         return DepartmentResponse.model_validate(department)
 
     async def list(
@@ -140,7 +140,7 @@ class DepartmentService:
         )
         department = result.scalar_one_or_none()
         if department is None:
-            raise ResourceNotFoundError("Department", str(department_id))
+            raise NotFoundException("Department", str(department_id))
 
         update_data = data.model_dump(exclude_unset=True)
         if "code" in update_data and update_data["code"] is not None:
@@ -155,7 +155,7 @@ class DepartmentService:
             await self.db.flush()
         except IntegrityError:
             await self.db.rollback()
-            raise DuplicateError("Department", "code", update_data.get("code", ""))
+            raise DuplicateException("Department", "code", update_data.get("code", ""))
 
         await self.db.refresh(department)
         return DepartmentResponse.model_validate(department)
@@ -173,7 +173,7 @@ class DepartmentService:
         )
         department = result.scalar_one_or_none()
         if department is None:
-            raise ResourceNotFoundError("Department", str(department_id))
+            raise NotFoundException("Department", str(department_id))
 
         department.is_active = False
         await self.db.flush()
