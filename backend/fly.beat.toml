@@ -10,7 +10,7 @@ primary_region = "bom"
   ENVIRONMENT = "production"
 
 [processes]
-  beat = "celery -A app.core.celery_app beat --loglevel=info"
+  beat = "celery -A app.core.celery_app beat --loglevel=info --schedule=/tmp/celerybeat-schedule"
 
 # No http_service — beat scheduler doesn't serve HTTP
 
