@@ -17,6 +17,7 @@ from app.engines.compliance.routes import router as compliance_router
 from app.engines.admin.routes import department_router, router as admin_router
 from app.engines.integration.routes import router as integration_router
 from app.engines.ai.routes import router as ai_router
+from app.routes.files import router as files_router
 from app.routes.webhooks import router as webhooks_router
 
 logger = logging.getLogger(__name__)
@@ -110,6 +111,7 @@ app.include_router(admin_router, prefix="/api/v1/admin", tags=["Admin Engine"])
 app.include_router(department_router, prefix="/api/v1/departments", tags=["Departments"])
 app.include_router(integration_router, prefix="/api/v1/integration", tags=["Integration Engine"])
 app.include_router(ai_router, prefix="/api/v1/ai", tags=["Central AI Engine"])
+app.include_router(files_router)     # Mounted at /api/v1/files/*
 app.include_router(webhooks_router)  # Mounted at /api/v1/webhooks/clerk/*
 
 
