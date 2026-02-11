@@ -3,7 +3,7 @@
 All models inherit from TenantModel (college_id + RLS).
 """
 
-from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.shared.models import Base, TenantModel
@@ -23,28 +23,45 @@ class StudySession(TenantModel):
 
 
 class Flashcard(TenantModel):
-    """Spaced repetition flashcards."""
+    """Spaced repetition flashcards — enhanced for S5 Flashcard Generator."""
     __tablename__ = "flashcards"
+    __table_args__ = (
+        Index("ix_flashcards_student_subject_topic", "college_id", "student_id", "subject", "topic"),
+        Index("ix_flashcards_student_active", "college_id", "student_id", "is_active"),
+    )
 
     student_id = Column(UUID(as_uuid=True), ForeignKey("students.id"), nullable=False)
     subject = Column(String(100), nullable=False)
     topic = Column(String(255))
     front = Column(Text, nullable=False)
     back = Column(Text, nullable=False)
+    card_type = Column(String(30), default="basic")  # basic, cloze, image_occlusion
     source = Column(String(20), default="manual")  # "manual", "ai_generated"
     competency_code = Column(String(20))
+    organ_system = Column(String(100))
+    difficulty = Column(Integer, default=3)  # 1-5
     tags = Column(JSONB, default=[])
+    source_citation = Column(String(500))
+    source_pdf_id = Column(String(500))
+    clinical_pearl = Column(Text)
+    is_ai_generated = Column(Boolean, default=True)
+    is_active = Column(Boolean, default=True)
 
 
 class FlashcardReview(TenantModel):
     """Individual review events for spaced repetition scheduling."""
     __tablename__ = "flashcard_reviews"
+    __table_args__ = (
+        Index("ix_flashcard_reviews_student_next_review", "college_id", "student_id", "next_review_date"),
+    )
 
     flashcard_id = Column(UUID(as_uuid=True), ForeignKey("flashcards.id"), nullable=False)
     student_id = Column(UUID(as_uuid=True), ForeignKey("students.id"), nullable=False)
     quality = Column(Integer)  # 0-5 (SM-2 algorithm)
+    response_time_ms = Column(Integer)
     interval_days = Column(Float)
     ease_factor = Column(Float, default=2.5)
+    repetition_count = Column(Integer, default=0)
     next_review_date = Column(Date)
     reviewed_at = Column(DateTime(timezone=True))
 

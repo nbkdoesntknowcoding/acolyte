@@ -33,5 +33,6 @@ celery_app.conf.update(
         "app.engines.admin.tasks",
         "app.engines.integration.tasks",
         "app.engines.ai.analytics.tasks",
+        "app.engines.ai.tasks",
     ],
 )

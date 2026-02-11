@@ -1,0 +1,159 @@
+{
+  "_comment": [
+    "SAF Template Example — JSON structure for Jason.",
+    "",
+    "This is an EXAMPLE template showing the expected structure.",
+    "DO NOT use this in production. Jason will create real templates",
+    "after his NMC/NAAC/NBA audit with actual section names, field",
+    "definitions, and data source mappings.",
+    "",
+    "POST this to /api/v1/ai/compliance/templates to create a template.",
+    "Or use /api/v1/ai/compliance/templates/{id}/test to test it.",
+    "",
+    "Field types: text, number, table, narrative, date",
+    "Sources: null (manual only), or a registered ComplianceDataFetcher",
+    "         source type (attendance_records, faculty_roster, etc.)"
+  ],
+  "template_code": "EXAMPLE_SAF_AI",
+  "title": "Example SAF Form AI — Institutional Information",
+  "description": "Example template showing the SAF-AI structure. Replace with actual NMC SAF form after audit.",
+  "regulatory_body": "nmc",
+  "version": 1,
+  "sections": [
+    {
+      "section_code": "A1",
+      "title": "Institutional Information",
+      "order": 1,
+      "fields": [
+        {
+          "field_code": "A1.1",
+          "label": "Name of the College",
+          "field_type": "text",
+          "data_source": null,
+          "data_query_config": null,
+          "is_required": true,
+          "requires_narrative": false,
+          "narrative_prompt": null,
+          "validation_rules": {
+            "max_length": 500
+          },
+          "help_text": "Full name as registered with NMC"
+        },
+        {
+          "field_code": "A1.2",
+          "label": "Year of Establishment",
+          "field_type": "number",
+          "data_source": null,
+          "data_query_config": null,
+          "is_required": true,
+          "requires_narrative": false,
+          "narrative_prompt": null,
+          "validation_rules": {
+            "min": 1900,
+            "max": 2030
+          },
+          "help_text": "Year the college was established"
+        },
+        {
+          "field_code": "A1.3",
+          "label": "Date of NMC Recognition",
+          "field_type": "date",
+          "data_source": null,
+          "data_query_config": null,
+          "is_required": true,
+          "requires_narrative": false,
+          "narrative_prompt": null,
+          "validation_rules": null,
+          "help_text": "Date of latest NMC Letter of Permission/Recognition"
+        }
+      ]
+    },
+    {
+      "section_code": "B1",
+      "title": "Faculty Strength",
+      "order": 2,
+      "fields": [
+        {
+          "field_code": "B1.1",
+          "label": "Total Faculty as per MSR",
+          "field_type": "number",
+          "data_source": "faculty_roster",
+          "data_query_config": {
+            "source": "faculty_roster",
+            "metric": "count",
+            "filters": {
+              "employment_status": "active"
+            }
+          },
+          "is_required": true,
+          "requires_narrative": false,
+          "narrative_prompt": null,
+          "validation_rules": {
+            "min": 0
+          },
+          "help_text": "Total number of active faculty. Auto-filled from HR data if available."
+        },
+        {
+          "field_code": "B1.2",
+          "label": "Faculty Strength Summary",
+          "field_type": "narrative",
+          "data_source": "faculty_roster",
+          "data_query_config": {
+            "source": "faculty_roster",
+            "metric": "summary",
+            "group_by": "designation"
+          },
+          "is_required": true,
+          "requires_narrative": true,
+          "narrative_prompt": "Write a paragraph describing the college's faculty strength breakdown by designation (Professors, Associate Professors, Assistant Professors, Tutors/Demonstrators, Senior Residents). Include the total count, and note any designation-wise shortfalls compared to MSR norms.",
+          "validation_rules": null,
+          "help_text": "AI-generated narrative from faculty roster data"
+        }
+      ]
+    },
+    {
+      "section_code": "C1",
+      "title": "Student Attendance",
+      "order": 3,
+      "fields": [
+        {
+          "field_code": "C1.1",
+          "label": "Average Student Attendance Rate (%)",
+          "field_type": "number",
+          "data_source": "attendance_records",
+          "data_query_config": {
+            "source": "attendance_records",
+            "metric": "percentage",
+            "aggregation": "avg",
+            "person_type": "student",
+            "time_window_days": 90
+          },
+          "is_required": true,
+          "requires_narrative": false,
+          "narrative_prompt": null,
+          "validation_rules": {
+            "min": 0,
+            "max": 100
+          },
+          "help_text": "90-day rolling average student attendance. Auto-filled from AEBAS data if available."
+        },
+        {
+          "field_code": "C1.2",
+          "label": "Attendance Compliance Narrative",
+          "field_type": "narrative",
+          "data_source": "attendance_records",
+          "data_query_config": {
+            "source": "attendance_records",
+            "metric": "compliance_summary",
+            "person_type": "student"
+          },
+          "is_required": false,
+          "requires_narrative": true,
+          "narrative_prompt": "Describe the college's student attendance compliance status. Mention the average rate, any departments below the 75% NMC threshold, and measures taken to improve attendance.",
+          "validation_rules": null,
+          "help_text": "AI-generated narrative on attendance compliance"
+        }
+      ]
+    }
+  ]
+}
