@@ -220,66 +220,46 @@ async def assess_knowledge(
 ) -> dict:
     """Node 2: Assess student's current knowledge level.
 
-    Queries the StudentMetacognitiveProfile (S8) to determine:
-    - What the student already knows about this topic
-    - Their mastery score and confidence calibration
+    Uses get_student_context_for_ai() from the S8 metacognitive engine
+    to get a comprehensive student model including:
+    - Overall mastery and per-subject breakdown
+    - Archetype / learning style
+    - Confidence tendency (under/over/well calibrated)
+    - Weak and strong topics
+    - Recommended difficulty level
     - Zone of Proximal Development
     """
-    from sqlalchemy import select
-
-    from app.engines.ai.models import StudentMetacognitiveProfile
+    from app.engines.ai.analytics.metacognitive import get_analytics_engine
 
     college_id = UUID(state["college_id"])
     student_id = UUID(state["student_id"])
 
-    # Query metacognitive profile for relevant topics
-    result = await db.execute(
-        select(StudentMetacognitiveProfile).where(
-            StudentMetacognitiveProfile.college_id == college_id,
-            StudentMetacognitiveProfile.student_id == student_id,
-        ).order_by(
-            StudentMetacognitiveProfile.mastery_score.desc()
-        ).limit(20)
+    engine = get_analytics_engine()
+    context = await engine.get_student_context_for_ai(
+        db, student_id, college_id,
     )
-    profiles = result.scalars().all()
 
-    if not profiles:
-        # New student — no data yet, default to intermediate
-        return {
-            "student_knowledge_level": "intermediate",
-            "known_concepts": [],
-            "zone_of_proximal_development": "guided_question",
-        }
-
-    # Calculate overall mastery across topics
-    total_mastery = sum(p.mastery_score for p in profiles)
-    avg_mastery = total_mastery / len(profiles) if profiles else 0.5
-
-    # Determine knowledge level
-    if avg_mastery >= 0.85:
+    # Determine knowledge level from overall mastery
+    if context.overall_mastery >= 0.85:
         level = "advanced"
-    elif avg_mastery >= 0.50:
+    elif context.overall_mastery >= 0.50:
         level = "intermediate"
     else:
         level = "novice"
 
-    # Extract concepts with high mastery
-    known = [
-        f"{p.subject}: {p.topic}"
-        for p in profiles
-        if p.mastery_score >= 0.70
-    ]
+    # Known concepts from strong topics
+    known = context.strong_topics[:10]
 
     # Determine ZPD from mastery score
     zpd = "guided_question"  # default
     for threshold, zpd_level in _ZPD_THRESHOLDS:
-        if avg_mastery >= threshold:
+        if context.overall_mastery >= threshold:
             zpd = zpd_level
             break
 
     return {
         "student_knowledge_level": level,
-        "known_concepts": known[:10],  # Cap at 10 for prompt length
+        "known_concepts": known,
         "zone_of_proximal_development": zpd,
     }
 

@@ -218,6 +218,7 @@ class MetacognitiveEventType(str, enum.Enum):
     AI_INTERACTION = "ai_interaction"
     CONFIDENCE_RATED = "confidence_rated"
     ANSWER_CHANGED = "answer_changed"
+    NAVIGATION_EVENT = "navigation_event"
 
 
 class RiskLevel(str, enum.Enum):
@@ -678,3 +679,61 @@ class StudentMetacognitiveProfile(TenantModel):
     risk_level = Column(
         String(10), nullable=False, default=RiskLevel.LOW.value,
     )
+    # Study pattern metrics (from proven B2C system)
+    work_break_ratio = Column(Float, nullable=True)
+    consistency_score = Column(Float, nullable=True)
+    # Answer change sub-metrics
+    beneficial_change_rate = Column(Float, nullable=True)
+    detrimental_change_rate = Column(Float, nullable=True)
+    # Navigation metrics
+    revisit_ratio = Column(Float, nullable=True)
+
+
+# ---------------------------------------------------------------------------
+# 12. StudentArchetypeProfile — Per-student archetype data (Layer 1 + Layer 2)
+#     Tenant-scoped. One row per student (NOT per topic).
+# ---------------------------------------------------------------------------
+
+class StudentArchetypeProfile(TenantModel):
+    """Per-student archetype data from the Dual-Layer Assessment System.
+
+    Layer 1 (self-reported): OCEAN questionnaire → initial archetype.
+    Layer 2 (behavioral): 30+ days of usage data → confirmed archetype.
+    Reveal: Comparison of L1 vs L2 with LLM-generated insight.
+
+    This is separate from StudentMetacognitiveProfile which is per-topic.
+    Archetype is a per-student characteristic.
+    """
+    __tablename__ = "student_archetype_profiles"
+    __table_args__ = (
+        UniqueConstraint(
+            "college_id", "student_id",
+            name="uq_archetype_profile_student",
+        ),
+        Index(
+            "ix_archetype_profile_college_student",
+            "college_id", "student_id",
+        ),
+    )
+
+    student_id = Column(UUID(as_uuid=True), nullable=False)
+
+    # Layer 1 — Self-reported OCEAN personality assessment
+    ocean_scores = Column(JSONB, nullable=True)
+    questionnaire_responses = Column(JSONB, nullable=True)
+    self_reported_archetype = Column(String(30), nullable=True)
+    self_reported_confidence = Column(Float, nullable=True)
+    layer1_assessed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Layer 2 — Data-driven behavioral archetype
+    behavioral_archetype = Column(String(30), nullable=True)
+    behavioral_confidence = Column(Float, nullable=True)
+    archetype_signals = Column(JSONB, nullable=True)
+    blind_spots = Column(JSONB, nullable=True)
+    layer2_computed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Metacognitive reveal
+    reveal_generated = Column(Boolean, nullable=False, server_default="false")
+    reveal_insight = Column(Text, nullable=True)
+    reveal_recommendations = Column(JSONB, nullable=True)
+    reveal_generated_at = Column(DateTime(timezone=True), nullable=True)

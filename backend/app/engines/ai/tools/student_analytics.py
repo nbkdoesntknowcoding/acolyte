@@ -28,12 +28,13 @@ class StudentAnalyticsServer(MCPToolServer):
             {
                 "name": "get_student_profile",
                 "description": (
-                    "Get a student's metacognitive profile including mastery "
-                    "scores, confidence calibration, accuracy rates, and risk "
-                    "levels across subjects and topics. Used to personalize "
-                    "AI interactions based on the student's current "
-                    "knowledge state.\n\nReturns: List of topic-level "
-                    "profiles with mastery scores and learning metrics."
+                    "Get a student's comprehensive learning profile including "
+                    "mastery scores, archetype (learning style), confidence "
+                    "tendency, weak/strong topics, recommended difficulty, "
+                    "and risk level. Used to personalize AI interactions.\n\n"
+                    "Without a subject filter: returns overall StudentAIContext "
+                    "with archetype and aggregated metrics.\n"
+                    "With a subject filter: returns per-topic breakdowns."
                 ),
                 "input_schema": {
                     "type": "object",
@@ -124,23 +125,51 @@ class StudentAnalyticsServer(MCPToolServer):
     async def _tool_get_student_profile(
         self, params: dict[str, Any]
     ) -> dict[str, Any]:
-        """Return metacognitive profiles for a student."""
+        """Return rich student context via the metacognitive engine.
+
+        Uses get_student_context_for_ai() for a comprehensive view
+        including archetype, confidence tendency, and recommended
+        difficulty — everything an AI agent needs to personalize.
+        Falls back to raw DB query if subject filter is specified.
+        """
         student_id = UUID(params["student_id"])
         subject = params.get("subject")
 
+        if not subject:
+            # Use the rich AI context method
+            from app.engines.ai.analytics.metacognitive import (
+                get_analytics_engine,
+            )
+
+            engine = get_analytics_engine()
+            context = await engine.get_student_context_for_ai(
+                self.db, student_id, self.college_id,
+            )
+
+            return {
+                "student_id": str(student_id),
+                "overall_mastery": context.overall_mastery,
+                "subject_masteries": context.subject_masteries,
+                "weak_topics": context.weak_topics,
+                "strong_topics": context.strong_topics,
+                "confidence_tendency": context.confidence_tendency,
+                "learning_style": context.learning_style,
+                "recent_activity": context.recent_activity,
+                "risk_level": context.risk_level,
+                "recommended_difficulty": context.recommended_difficulty,
+                "answer_change_tendency": context.answer_change_tendency,
+            }
+
+        # Subject-specific: fall back to per-topic profiles
         query = (
             select(StudentMetacognitiveProfile)
             .where(
                 StudentMetacognitiveProfile.college_id == self.college_id,
                 StudentMetacognitiveProfile.student_id == student_id,
+                StudentMetacognitiveProfile.subject == subject,
             )
             .order_by(StudentMetacognitiveProfile.mastery_score.asc())
         )
-
-        if subject:
-            query = query.where(
-                StudentMetacognitiveProfile.subject == subject
-            )
 
         result = await self.db.execute(query)
         profiles = result.scalars().all()
@@ -180,6 +209,7 @@ class StudentAnalyticsServer(MCPToolServer):
 
         return {
             "student_id": str(student_id),
+            "subject": subject,
             "topic_profiles": topics,
             "total_topics": len(topics),
         }
@@ -286,6 +316,24 @@ class StudentAnalyticsServer(MCPToolServer):
         # Study sessions count.
         study_sessions = event_types.get("study_session_started", 0)
 
+        # Aggregate work_break_ratio and consistency_score from profiles
+        profile_result = await self.db.execute(
+            select(
+                func.avg(StudentMetacognitiveProfile.work_break_ratio).label(
+                    "avg_wbr"
+                ),
+                func.avg(StudentMetacognitiveProfile.consistency_score).label(
+                    "avg_cs"
+                ),
+            ).where(
+                StudentMetacognitiveProfile.college_id == self.college_id,
+                StudentMetacognitiveProfile.student_id == student_id,
+            )
+        )
+        agg = profile_result.one_or_none()
+        avg_wbr = float(agg.avg_wbr) if agg and agg.avg_wbr else None
+        avg_cs = float(agg.avg_cs) if agg and agg.avg_cs else None
+
         return {
             "student_id": str(student_id),
             "period_days": days,
@@ -295,4 +343,6 @@ class StudentAnalyticsServer(MCPToolServer):
             "active_subjects": active_subjects,
             "questions_answered": event_types.get("question_answered", 0),
             "flashcards_reviewed": event_types.get("flashcard_reviewed", 0),
+            "work_break_ratio": avg_wbr,
+            "consistency_score": avg_cs,
         }

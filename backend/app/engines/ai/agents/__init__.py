@@ -9,6 +9,16 @@ Usage from routes or other engines (via AI engine public interface):
         run_socratic_study_buddy,
         stream_socratic_study_buddy,
     )
+    from app.engines.ai.agents.practice_question_generator import (
+        generate_practice_questions,
+        GeneratedMCQ,
+        PracticeQuestionBatch,
+    )
+    from app.engines.ai.agents.exam_question_generator import (
+        generate_exam_questions,
+        handle_faculty_review,
+        ExamQuestionDraft,
+    )
 """
 
 from app.engines.ai.agents.socratic_study_buddy import (  # noqa: F401
@@ -16,4 +26,23 @@ from app.engines.ai.agents.socratic_study_buddy import (  # noqa: F401
     build_socratic_graph,
     run_socratic_study_buddy,
     stream_socratic_study_buddy,
+)
+from app.engines.ai.agents.practice_question_generator import (  # noqa: F401
+    GeneratedMCQ,
+    MCQOption,
+    PracticeQuestionBatch,
+    QuestionGenState,
+    build_question_gen_graph,
+    generate_practice_questions,
+)
+from app.engines.ai.agents.exam_question_generator import (  # noqa: F401
+    ExamGenState,
+    ExamQuestionDraft,
+    GeneratedLAQ,
+    GeneratedSAQ,
+    RubricCriterion,
+    SubQuestion,
+    build_exam_gen_graph,
+    generate_exam_questions,
+    handle_faculty_review,
 )

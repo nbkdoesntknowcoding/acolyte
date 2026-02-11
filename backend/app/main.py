@@ -16,7 +16,7 @@ from app.engines.faculty.routes import router as faculty_router
 from app.engines.compliance.routes import router as compliance_router
 from app.engines.admin.routes import router as admin_router
 from app.engines.integration.routes import router as integration_router
-from app.engines.ai.routes import router as ai_router
+from app.engines.ai.router import router as ai_router
 from app.routes.webhooks import router as webhooks_router
 
 logger = logging.getLogger(__name__)
