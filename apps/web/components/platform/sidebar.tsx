@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { label: 'Licenses', href: '/platform/licenses', icon: '⊟' },
   { label: 'Onboarding', href: '/platform/onboard', icon: '⊕' },
   { label: 'System Health', href: '/platform/health', icon: '♥' },
+  { label: 'System Tests', href: '/platform/tests', icon: '▶' },
   { label: 'AI Costs', href: '/platform/ai-costs', icon: '$' },
   { label: 'Alerts', href: '/platform/alerts', icon: '!' },
   { label: 'Audit Log', href: '/platform/audit-log', icon: '▤' },

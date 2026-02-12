@@ -465,6 +465,57 @@ export function useLicenseAction() {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Test runner hooks
+// ---------------------------------------------------------------------------
+
+export interface TestSuite {
+  file: string;
+  path: string;
+  label: string;
+}
+
+export interface TestRunResult {
+  status: 'passed' | 'failed' | 'timeout';
+  exit_code: number;
+  summary: string;
+  output: string;
+  stderr?: string;
+  passed: number;
+  failed: number;
+  errors: number;
+  total: number;
+  duration_seconds: number;
+  suite: string | null;
+  keyword: string | null;
+  ran_at: string;
+}
+
+export function useTestSuites(): UseQueryResult<TestSuite[]> {
+  const { getToken } = useAuth();
+  const fetcher = createFetcher(getToken);
+  return useQuery({
+    queryKey: ['platform', 'tests', 'suites'],
+    queryFn: () => fetcher<TestSuite[]>('/tests/suites'),
+  });
+}
+
+export function useRunTests() {
+  const { getToken } = useAuth();
+  const fetcher = createFetcher(getToken);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ suite, keyword }: { suite?: string; keyword?: string }) => {
+      const params = new URLSearchParams();
+      if (suite) params.set('suite', suite);
+      if (keyword) params.set('keyword', keyword);
+      return fetcher<TestRunResult>(`/tests/run?${params}`, {
+        method: 'POST',
+      });
+    },
+  });
+}
+
 export function useAlertAction() {
   const { getToken } = useAuth();
   const fetcher = createFetcher(getToken);
