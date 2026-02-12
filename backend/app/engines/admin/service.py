@@ -197,22 +197,91 @@ class DepartmentService:
 # Public interface functions (called by other engines via admin.__init__)
 # ---------------------------------------------------------------------------
 
-async def get_faculty_roster(db: AsyncSession, college_id: UUID, department_id: UUID = None) -> list:
+async def get_faculty_roster(
+    db: AsyncSession,
+    college_id: UUID,
+    department_id: UUID | None = None,
+    status: str = "active",
+) -> list[dict]:
     """Get faculty roster, optionally filtered by department.
 
     This is part of the public interface — called by Compliance Engine.
+    RLS is already set on the session.
     """
-    return []
+    from app.engines.admin.models import Faculty
+
+    query = select(Faculty).where(Faculty.status == status)
+    if department_id is not None:
+        query = query.where(Faculty.department_id == department_id)
+
+    result = await db.execute(query)
+    faculty_list = result.scalars().all()
+
+    return [
+        {
+            "id": str(f.id),
+            "name": f.name,
+            "designation": f.designation,
+            "department_id": str(f.department_id),
+            "qualification": f.qualification,
+            "specialization": f.specialization,
+            "employment_type": f.employment_type,
+            "date_of_joining": f.date_of_joining.isoformat() if f.date_of_joining else None,
+            "retirement_date": f.retirement_date.isoformat() if f.retirement_date else None,
+            "status": f.status,
+            "nmc_faculty_id": f.nmc_faculty_id,
+            "aebas_id": f.aebas_id,
+        }
+        for f in faculty_list
+    ]
 
 
 async def get_faculty_count_by_department(db: AsyncSession, college_id: UUID) -> dict:
     """Get faculty count by department for MSR calculation.
 
-    Returns: {department_id: FacultyCount}
+    Returns: {department_id_str: {"total": n, "professors": n, ...}}
+    RLS is already set on the session.
     """
-    return {}
+    from app.engines.admin.models import Faculty
+
+    result = await db.execute(
+        select(
+            Faculty.department_id,
+            Faculty.designation,
+            func.count(Faculty.id).label("count"),
+        ).where(
+            Faculty.status == "active",
+        ).group_by(Faculty.department_id, Faculty.designation)
+    )
+    rows = result.all()
+
+    counts: dict[str, dict] = {}
+    for dept_id, designation, count in rows:
+        dept_key = str(dept_id)
+        if dept_key not in counts:
+            counts[dept_key] = {"total": 0}
+        counts[dept_key][designation or "unknown"] = count
+        counts[dept_key]["total"] += count
+
+    return counts
 
 
-async def get_student_count(db: AsyncSession, college_id: UUID, phase: str = None) -> int:
-    """Get student count, optionally filtered by phase."""
-    return 0
+async def get_student_count(
+    db: AsyncSession,
+    college_id: UUID,
+    phase: str | None = None,
+) -> int:
+    """Get student count, optionally filtered by phase.
+
+    RLS is already set on the session.
+    """
+    from app.engines.admin.models import Student
+
+    query = select(func.count(Student.id)).where(
+        Student.status.in_(["active", "enrolled"]),
+    )
+    if phase is not None:
+        query = query.where(Student.current_phase == phase)
+
+    result = await db.execute(query)
+    return result.scalar_one()

@@ -16,7 +16,7 @@ from app.middleware.clerk_auth import CurrentUser
 from app.engines.student.routes import router as student_router
 from app.engines.faculty.routes import router as faculty_router
 from app.engines.compliance.routes import router as compliance_router
-from app.engines.admin.routes import department_router, router as admin_router
+from app.engines.admin.routes import admin_router
 from app.engines.integration.routes import router as integration_router
 from app.engines.ai.routes import router as ai_router
 from app.routes.files import router as files_router
@@ -141,7 +141,6 @@ app.include_router(student_router, prefix="/api/v1/student", tags=["Student Engi
 app.include_router(faculty_router, prefix="/api/v1/faculty", tags=["Faculty Engine"])
 app.include_router(compliance_router, prefix="/api/v1/compliance", tags=["Compliance Engine"])
 app.include_router(admin_router, prefix="/api/v1/admin", tags=["Admin Engine"])
-app.include_router(department_router, prefix="/api/v1/departments", tags=["Departments"])
 app.include_router(integration_router, prefix="/api/v1/integration", tags=["Integration Engine"])
 app.include_router(ai_router, prefix="/api/v1/ai", tags=["Central AI Engine"])
 app.include_router(files_router)     # Mounted at /api/v1/files/*
