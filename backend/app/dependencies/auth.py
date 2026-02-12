@@ -195,9 +195,11 @@ async def get_tenant_db(
             result = await db.execute(select(Student))  # RLS-filtered
             ...
     """
+    # NOTE: SET does not support parameterized queries in asyncpg ($1 syntax).
+    # We must use text() with string interpolation. The college_id is a UUID from
+    # a verified JWT, so injection is not a concern here.
     await db.execute(
-        text("SET app.current_college_id = :college_id"),
-        {"college_id": str(user.college_id)},
+        text(f"SET app.current_college_id = '{user.college_id}'")
     )
     return db
 

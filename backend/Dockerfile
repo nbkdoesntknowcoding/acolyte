@@ -1,19 +1,22 @@
-FROM python:3.11-slim AS base
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system deps
+# Install system deps needed for compilation, then clean up
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python deps
+# Install Python deps (cached layer — only re-runs when requirements.txt changes)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy app
+# Copy app code (respects .dockerignore)
 COPY . .
 
-# Run
+# Create non-root user for security
+RUN useradd --create-home --uid 1000 acolyte
+USER acolyte
+
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

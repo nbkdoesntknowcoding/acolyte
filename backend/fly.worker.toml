@@ -1,0 +1,20 @@
+app = "acolyte-worker"
+primary_region = "bom"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# No release_command — the API service handles migrations
+
+[env]
+  ENVIRONMENT = "production"
+
+[processes]
+  worker = "celery -A app.core.celery_app worker --loglevel=info --concurrency=2"
+
+# No http_service — worker doesn't serve HTTP
+
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1

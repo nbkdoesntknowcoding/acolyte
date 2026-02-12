@@ -1,12 +1,40 @@
 """Admin Engine — SQLAlchemy Models."""
 
+import enum
 import uuid
 
-from sqlalchemy import BigInteger, Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.shared.models import Base, TenantModel
 
+
+# ---------------------------------------------------------------------------
+# Enums
+# ---------------------------------------------------------------------------
+
+class NMCDepartmentType(str, enum.Enum):
+    """NMC-defined department classification."""
+    PRECLINICAL = "preclinical"
+    PARACLINICAL = "paraclinical"
+    CLINICAL = "clinical"
+
+
+# ---------------------------------------------------------------------------
+# College (tenant root — NOT tenant-scoped)
+# ---------------------------------------------------------------------------
 
 class College(Base):
     """Top-level tenant entity. NOT tenant-scoped itself."""
@@ -34,15 +62,36 @@ class College(Base):
     created_at = Column(DateTime(timezone=True), server_default="NOW()")
 
 
+# ---------------------------------------------------------------------------
+# Department — REFERENCE CRUD MODEL
+# ---------------------------------------------------------------------------
+
 class Department(TenantModel):
-    """Department definitions with MSR thresholds."""
+    """Academic department within a college.
+
+    Every college has departments like Anatomy, Physiology, etc.
+    Classified by NMC as preclinical, paraclinical, or clinical.
+    """
     __tablename__ = "departments"
+    __table_args__ = (
+        UniqueConstraint("college_id", "code", name="uq_department_college_code"),
+    )
 
     name = Column(String(100), nullable=False)
-    code = Column(String(20))
-    department_type = Column(String(20))  # "preclinical", "paraclinical", "clinical"
-    hod_id = Column(UUID(as_uuid=True), ForeignKey("faculty.id", use_alter=True))
+    code = Column(String(20), nullable=False)
+    nmc_department_type = Column(String(20), nullable=False)
+    hod_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("faculty.id", use_alter=True),
+        nullable=True,
+    )
+    is_active = Column(Boolean, nullable=False, server_default="true")
+    established_year = Column(Integer, nullable=True)
 
+
+# ---------------------------------------------------------------------------
+# Student
+# ---------------------------------------------------------------------------
 
 class Student(TenantModel):
     """Student master record."""
@@ -70,6 +119,10 @@ class Student(TenantModel):
     status = Column(String(20), default="active")
     clerk_user_id = Column(String(255), unique=True)
 
+
+# ---------------------------------------------------------------------------
+# Faculty
+# ---------------------------------------------------------------------------
 
 class Faculty(TenantModel):
     """Faculty master record."""
@@ -102,6 +155,10 @@ class Faculty(TenantModel):
     clerk_user_id = Column(String(255), unique=True)
 
 
+# ---------------------------------------------------------------------------
+# Batch
+# ---------------------------------------------------------------------------
+
 class Batch(TenantModel):
     """Student batch groupings."""
     __tablename__ = "batches"
@@ -111,6 +168,10 @@ class Batch(TenantModel):
     phase = Column(String(10))
     student_count = Column(Integer, default=0)
 
+
+# ---------------------------------------------------------------------------
+# Fee Management
+# ---------------------------------------------------------------------------
 
 class FeeStructure(TenantModel):
     """Fee configuration per quota per academic year."""

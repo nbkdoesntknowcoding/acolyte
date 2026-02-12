@@ -2,8 +2,10 @@ import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.exc import IntegrityError
 
 from app.config import get_settings
 from app.core.permify.client import PermifyClient
@@ -14,9 +16,10 @@ from app.middleware.clerk_auth import CurrentUser
 from app.engines.student.routes import router as student_router
 from app.engines.faculty.routes import router as faculty_router
 from app.engines.compliance.routes import router as compliance_router
-from app.engines.admin.routes import router as admin_router
+from app.engines.admin.routes import department_router, router as admin_router
 from app.engines.integration.routes import router as integration_router
 from app.engines.ai.routes import router as ai_router
+from app.routes.files import router as files_router
 from app.routes.webhooks import router as webhooks_router
 from app.platform.router import router as platform_router
 
@@ -30,7 +33,27 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     logger.info("Starting Acolyte API [%s]", settings.APP_ENV)
 
-    # Initialize Permify client and push schema
+    # --- Redis connectivity check ---
+    redis_ok = False
+    try:
+        import redis
+
+        redis_url = settings.REDIS_URL or ""
+        if redis_url:
+            r = redis.from_url(redis_url, decode_responses=True, socket_timeout=5)
+            r.ping()
+            r.close()
+            redis_ok = True
+            # Log host only (redact password)
+            redis_host = redis_url.split("@")[-1] if "@" in redis_url else redis_url
+            logger.info("Redis connected at %s", redis_host)
+        else:
+            logger.warning("REDIS_URL not set — Celery tasks will not work")
+    except Exception as e:
+        logger.warning("Redis unreachable: %s — Celery tasks will not work", e)
+    app.state.redis_ok = redis_ok
+
+    # --- Permify connectivity + schema sync ---
     permify = PermifyClient(settings)
     app.state.permify = permify
 
@@ -48,6 +71,9 @@ async def lifespan(app: FastAPI):
             permify._base_url,
         )
 
+    if redis_ok and healthy:
+        logger.info("All dependencies ready — Celery worker/beat can process tasks")
+
     yield
 
     # Shutdown
@@ -61,6 +87,35 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+# ---------------------------------------------------------------------------
+# Global exception handlers — standard error envelope for ALL errors
+#
+# API Response Contract (for frontend):
+# SUCCESS:   Routes return Pydantic models directly or
+#            {"data": ..., "meta": {"timestamp": "..."}} via response helpers
+# PAGINATED: {"data": [...], "meta": {"total": N, "page": N, "page_size": N, "total_pages": N}}
+# ERROR:     {"error": {"code": "ERROR_CODE", "message": "Human readable", "details": {...} | null}}
+#
+# See app/shared/error_handlers.py for handler implementations.
+# See app/shared/exceptions.py for the exception hierarchy.
+# See app/shared/response.py for success/paginated response helpers.
+# ---------------------------------------------------------------------------
+
+from app.shared.exceptions import AcolyteException
+from app.shared.error_handlers import (
+    acolyte_exception_handler,
+    http_exception_handler,
+    integrity_error_handler,
+    unhandled_exception_handler,
+    validation_exception_handler,
+)
+
+app.add_exception_handler(AcolyteException, acolyte_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(IntegrityError, integrity_error_handler)
+app.add_exception_handler(HTTPException, http_exception_handler)
+app.add_exception_handler(Exception, unhandled_exception_handler)
 
 # ---------------------------------------------------------------------------
 # Middleware stack (applied in REVERSE order — last added runs first)
@@ -86,8 +141,10 @@ app.include_router(student_router, prefix="/api/v1/student", tags=["Student Engi
 app.include_router(faculty_router, prefix="/api/v1/faculty", tags=["Faculty Engine"])
 app.include_router(compliance_router, prefix="/api/v1/compliance", tags=["Compliance Engine"])
 app.include_router(admin_router, prefix="/api/v1/admin", tags=["Admin Engine"])
+app.include_router(department_router, prefix="/api/v1/departments", tags=["Departments"])
 app.include_router(integration_router, prefix="/api/v1/integration", tags=["Integration Engine"])
 app.include_router(ai_router, prefix="/api/v1/ai", tags=["Central AI Engine"])
+app.include_router(files_router)     # Mounted at /api/v1/files/*
 app.include_router(webhooks_router)  # Mounted at /api/v1/webhooks/clerk/*
 app.include_router(platform_router, prefix="/api/v1/platform", tags=["Platform Admin"])
 
@@ -100,6 +157,7 @@ app.include_router(platform_router, prefix="/api/v1/platform", tags=["Platform A
 async def health_check():
     permify: PermifyClient | None = getattr(app.state, "permify", None)
     permify_ok = await permify.health_check() if permify else False
+    redis_ok = getattr(app.state, "redis_ok", False)
 
     return {
         "status": "healthy",
@@ -108,6 +166,7 @@ async def health_check():
         "version": "0.1.0",
         "dependencies": {
             "permify": "connected" if permify_ok else "unreachable",
+            "redis": "connected" if redis_ok else "unreachable",
         },
     }
 

@@ -4,6 +4,8 @@ Tasks:
 - ai.daily_recommendations: Morning recommendations for active students.
 - ai.weekly_study_plan: Sunday evening study plans.
 - ai.engagement_nudge: Nudge disengaged students (3+ days inactive).
+- ai.rollup_ai_costs: Hourly AI cost aggregation per college.
+- ai.batch_embed_documents: Batch document embedding generation.
 
 Registered in celery_app.py via imports config.
 """
@@ -274,3 +276,34 @@ def engagement_nudge(college_id: str) -> dict:
         result["errors"],
     )
     return result
+
+
+@celery_app.task(name="ai.rollup_ai_costs")
+def rollup_ai_costs(college_id: str):
+    """Aggregate AI token usage and costs per college.
+
+    When college_id="__all__", iterates all colleges.
+    Reads ai_requests/ai_responses tables, calculates per-tenant
+    token spend, checks against budget thresholds.
+
+    Called by beat schedule every hour.
+    """
+    logger.info("Rolling up AI costs for college_id=%s", college_id)
+    # TODO: Implement — query ai_requests, sum tokens by model,
+    # calculate costs via LiteLLM pricing, store rollup,
+    # trigger auto-downgrade (Sonnet → Haiku) if approaching budget
+
+
+@celery_app.task(name="ai.batch_embed_documents")
+def batch_embed_documents(college_id: str, document_ids: list[str]):
+    """Generate embeddings for uploaded documents in batch.
+
+    Chunks documents, generates OpenAI text-embedding-3-large vectors,
+    stores in document_embeddings table with HNSW index.
+    """
+    logger.info(
+        "Embedding %d documents for college_id=%s",
+        len(document_ids), college_id,
+    )
+    # TODO: Implement — fetch documents from R2, chunk with
+    # medical-aware chunker, embed, upsert into document_embeddings

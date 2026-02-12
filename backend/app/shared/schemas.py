@@ -1,9 +1,9 @@
 """Shared Pydantic schemas used across all engines."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class HealthCheck(BaseModel):
@@ -13,16 +13,37 @@ class HealthCheck(BaseModel):
     version: str
 
 
+# ---------------------------------------------------------------------------
+# Standard error envelope (for OpenAPI documentation)
+#
+# The actual error responses are built by error_handlers.py. These schemas
+# are for use in OpenAPI responses={} declarations so Swagger/Redoc shows
+# the correct error shape.
+# ---------------------------------------------------------------------------
+
+class ErrorDetail(BaseModel):
+    """The standard error object returned by all error responses."""
+
+    code: str = Field(..., examples=["NOT_FOUND"])
+    message: str = Field(..., examples=["Department not found"])
+    details: dict | list | None = None
+    timestamp: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat(),
+    )
+
+
 class ErrorResponse(BaseModel):
-    detail: str
-    code: str = "error"
-    timestamp: datetime = None
+    """Top-level error envelope.
 
-    def __init__(self, **data):
-        if data.get("timestamp") is None:
-            data["timestamp"] = datetime.utcnow()
-        super().__init__(**data)
+    Shape: {"error": {"code": "...", "message": "...", "details": ..., "timestamp": "..."}}
+    """
 
+    error: ErrorDetail
+
+
+# ---------------------------------------------------------------------------
+# Pagination
+# ---------------------------------------------------------------------------
 
 class PaginatedResponse(BaseModel):
     data: list
@@ -37,8 +58,13 @@ class PaginationParams(BaseModel):
     page_size: int = 20
 
 
+# ---------------------------------------------------------------------------
+# Tenant context
+# ---------------------------------------------------------------------------
+
 class TenantContext(BaseModel):
     """Injected into every request via middleware."""
+
     user_id: UUID
     college_id: UUID
     role: str
