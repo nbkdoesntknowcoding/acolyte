@@ -1,0 +1,933 @@
+<!-- Acolyte Admissions Management Dashboard -->
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Acolyte Transport &amp; Fleet Management</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#10b981",
+                        "primary-dark": "#059669",
+                        "background-light": "#f6f8f7",
+                        "background-dark": "#111111",
+                        "surface-dark": "#141414",
+                        "surface-dark-lighter": "#262626",
+                        "border-dark": "#1E1E1E",
+                        "sidebar": "#0A0A0A",
+                        "content-bg": "#111111",
+                        "emerald-accent": "#10B981"
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #171717;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #404040;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #525252;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-content-bg text-gray-900 dark:text-gray-100 font-display antialiased min-h-screen flex overflow-hidden">
+<aside class="w-[240px] bg-sidebar border-r border-border-dark flex flex-col shrink-0 h-screen sticky top-0 z-40 hidden md:flex">
+<div class="h-16 flex items-center px-6 border-b border-border-dark">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-primary flex items-center justify-center text-white font-bold text-lg">A</div>
+<span class="text-xl font-bold tracking-tight text-primary">ACOLYTE</span>
+</div>
+</div>
+<nav class="flex-1 overflow-y-auto custom-scrollbar py-6 space-y-8 px-4">
+<div>
+<div class="mb-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Overview</div>
+<ul class="space-y-1">
+<li>
+<a class="flex items-center gap-3 px-3 py-2 text-gray-400 rounded-lg hover:bg-gray-800 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-xl group-hover:text-gray-300 transition-colors">dashboard</span>
+<span class="text-sm font-medium">Dashboard</span>
+</a>
+</li>
+</ul>
+</div>
+<div>
+<div class="mb-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Academics</div>
+<ul class="space-y-1">
+<li>
+<a class="flex items-center gap-3 px-3 py-2 text-gray-400 rounded-lg hover:bg-gray-800 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-xl group-hover:text-gray-300 transition-colors">school</span>
+<span class="text-sm font-medium">Programs</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-3 py-2 text-gray-400 rounded-lg hover:bg-gray-800 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-xl group-hover:text-gray-300 transition-colors">calendar_month</span>
+<span class="text-sm font-medium">Timetable</span>
+</a>
+</li>
+</ul>
+</div>
+<div>
+<div class="mb-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Facilities</div>
+<ul class="space-y-1">
+<li>
+<a class="flex items-center gap-3 px-3 py-2 text-gray-400 rounded-lg hover:bg-gray-800 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-xl group-hover:text-gray-300 transition-colors">hotel</span>
+<span class="text-sm font-medium">Hostel</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-3 py-2 text-gray-400 rounded-lg hover:bg-gray-800 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-xl group-hover:text-gray-300 transition-colors">restaurant</span>
+<span class="text-sm font-medium">Mess</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-3 py-2 bg-primary/10 text-white rounded-lg border-l-4 border-primary transition-all" href="#">
+<span class="material-symbols-outlined text-xl text-primary">local_shipping</span>
+<span class="text-sm font-medium">Transport</span>
+</a>
+</li>
+</ul>
+</div>
+</nav>
+<div class="p-4 border-t border-border-dark">
+<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors">
+<div class="w-8 h-8 rounded-full bg-gradient-to-tr from-gray-700 to-gray-600 overflow-hidden ring-1 ring-gray-600">
+<img alt="Dr. Sharma" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBsGmQ8ZyMA16lEZfPBk54IztNQ8YPUxJ-imS1cnR9ys9CpAFyw3sVHyckPuda0oI7_3U--rE5YllDESLp3AnfGEJ9bDV7xAqvzokbxsXX-xl73RVWsi8p8WHouo5GA-LD72VbinXWoRn4Xsf4zltyLR1yetirOOU4HPVZm3nx_9gKFavT2fpnBH-TQ_T7b-KhCwt2ruw8Sf5dF_8Hr3uzttDPC5qxxF_PPshYrffw2Y2ieQ-UQyq5CpIF3X3wFDtBniRqxuBoUGW6I"/>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-medium text-white truncate">Dr. A. Sharma</p>
+<p class="text-xs text-gray-500 truncate">Dean of Faculty</p>
+</div>
+</div>
+</div>
+</aside>
+<div class="flex-1 flex flex-col h-screen overflow-hidden relative">
+<header class="h-16 bg-white dark:bg-sidebar border-b border-gray-200 dark:border-border-dark flex items-center justify-between px-6 shrink-0 z-30">
+<div class="flex items-center gap-2">
+<button class="md:hidden mr-2 text-gray-500">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<nav class="flex items-center text-sm font-medium text-gray-500 dark:text-gray-400">
+<span class="hover:text-gray-900 dark:hover:text-white cursor-pointer">Facilities</span>
+<span class="mx-2 text-gray-600">/</span>
+<span class="text-gray-900 dark:text-white font-semibold">Transport Management</span>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center bg-surface-dark border border-border-dark rounded-lg p-1">
+<button class="p-1.5 px-3 rounded bg-surface-dark-lighter text-white shadow-sm text-xs font-medium flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span> Live Status
+                    </button>
+<button class="p-1.5 px-3 rounded text-gray-400 hover:text-white transition-colors text-xs font-medium">Reports</button>
+</div>
+<div class="h-6 w-px bg-border-dark"></div>
+<button class="relative p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-surface-dark-lighter rounded-full transition-colors">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-sidebar"></span>
+</button>
+</div>
+</header>
+<main class="flex-1 flex overflow-hidden">
+<div class="flex-1 flex flex-col overflow-hidden bg-background-dark relative">
+<div class="flex-1 overflow-auto custom-scrollbar p-6 space-y-6">
+<div>
+<div class="flex items-center justify-between mb-4">
+<h2 class="text-lg font-bold text-white tracking-tight">Route Management</h2>
+<div class="flex gap-2">
+<button class="p-1 rounded-full hover:bg-surface-dark-lighter text-gray-400 transition-colors">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<button class="p-1 rounded-full hover:bg-surface-dark-lighter text-gray-400 transition-colors">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<div class="bg-surface-dark border border-border-dark rounded-xl p-5 hover:border-emerald-500/30 transition-colors group">
+<div class="flex justify-between items-start mb-4">
+<div class="bg-emerald-500/10 p-2 rounded-lg">
+<span class="material-symbols-outlined text-emerald-500">directions_bus</span>
+</div>
+<span class="text-xs bg-surface-dark-lighter text-gray-300 px-2 py-1 rounded border border-border-dark">Active</span>
+</div>
+<h3 class="text-white font-semibold text-base mb-1">Campus - Hospital Shuttle</h3>
+<p class="text-gray-500 text-xs mb-4">Regular service for clinical rotations</p>
+<div class="space-y-2">
+<div class="flex justify-between text-sm">
+<span class="text-gray-400 flex items-center gap-2"><span class="material-symbols-outlined text-[16px]">schedule</span> Next Dep.</span>
+<span class="text-white font-medium">08:30 AM</span>
+</div>
+<div class="flex justify-between text-sm">
+<span class="text-gray-400 flex items-center gap-2"><span class="material-symbols-outlined text-[16px]">pin_drop</span> Vehicles</span>
+<span class="text-white font-medium">4 Active</span>
+</div>
+<div class="flex justify-between text-sm">
+<span class="text-gray-400 flex items-center gap-2"><span class="material-symbols-outlined text-[16px]">person</span> Lead Driver</span>
+<span class="text-white font-medium">Rajesh K.</span>
+</div>
+</div>
+</div>
+<div class="bg-surface-dark border border-border-dark rounded-xl p-5 hover:border-emerald-500/30 transition-colors group">
+<div class="flex justify-between items-start mb-4">
+<div class="bg-emerald-500/10 p-2 rounded-lg">
+<span class="material-symbols-outlined text-emerald-500">medical_services</span>
+</div>
+<span class="text-xs bg-surface-dark-lighter text-gray-300 px-2 py-1 rounded border border-border-dark">Scheduled</span>
+</div>
+<h3 class="text-white font-semibold text-base mb-1">RHTC (Rural Center)</h3>
+<p class="text-gray-500 text-xs mb-4">Weekly community medicine visit</p>
+<div class="space-y-2">
+<div class="flex justify-between text-sm">
+<span class="text-gray-400 flex items-center gap-2"><span class="material-symbols-outlined text-[16px]">schedule</span> Departure</span>
+<span class="text-white font-medium">09:00 AM (Fri)</span>
+</div>
+<div class="flex justify-between text-sm">
+<span class="text-gray-400 flex items-center gap-2"><span class="material-symbols-outlined text-[16px]">pin_drop</span> Vehicles</span>
+<span class="text-white font-medium">2 Buses</span>
+</div>
+<div class="flex justify-between text-sm">
+<span class="text-gray-400 flex items-center gap-2"><span class="material-symbols-outlined text-[16px]">person</span> Coordinator</span>
+<span class="text-white font-medium">Dr. Menon</span>
+</div>
+</div>
+</div>
+<div class="bg-surface-dark border border-border-dark rounded-xl p-5 hover:border-emerald-500/30 transition-colors group">
+<div class="flex justify-between items-start mb-4">
+<div class="bg-emerald-500/10 p-2 rounded-lg">
+<span class="material-symbols-outlined text-emerald-500">dark_mode</span>
+</div>
+<span class="text-xs bg-surface-dark-lighter text-gray-300 px-2 py-1 rounded border border-border-dark">On Call</span>
+</div>
+<h3 class="text-white font-semibold text-base mb-1">Night Duty Transport</h3>
+<p class="text-gray-500 text-xs mb-4">Emergency &amp; late shift drop-offs</p>
+<div class="space-y-2">
+<div class="flex justify-between text-sm">
+<span class="text-gray-400 flex items-center gap-2"><span class="material-symbols-outlined text-[16px]">schedule</span> Shift</span>
+<span class="text-white font-medium">8 PM - 6 AM</span>
+</div>
+<div class="flex justify-between text-sm">
+<span class="text-gray-400 flex items-center gap-2"><span class="material-symbols-outlined text-[16px]">pin_drop</span> Vehicles</span>
+<span class="text-white font-medium">1 Van</span>
+</div>
+<div class="flex justify-between text-sm">
+<span class="text-gray-400 flex items-center gap-2"><span class="material-symbols-outlined text-[16px]">person</span> On Duty</span>
+<span class="text-white font-medium">Suresh M.</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-surface-dark border border-border-dark rounded-xl overflow-hidden">
+<div class="px-6 py-4 border-b border-border-dark flex justify-between items-center">
+<h3 class="text-sm font-bold text-white flex items-center gap-2">
+<span class="material-symbols-outlined text-gray-400">directions_car</span> Vehicle Fleet
+                            </h3>
+<div class="flex gap-2">
+<div class="relative">
+<span class="absolute left-2.5 top-2 material-symbols-outlined text-gray-500 text-[18px]">search</span>
+<input class="bg-surface-dark-lighter border border-border-dark text-gray-300 text-xs rounded-lg pl-9 pr-3 py-2 focus:ring-1 focus:ring-emerald-500 focus:outline-none w-48" placeholder="Search vehicle..." type="text"/>
+</div>
+<button class="bg-primary hover:bg-primary-dark text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">add</span> Add Vehicle
+                                </button>
+</div>
+</div>
+<table class="w-full text-left text-sm text-gray-400">
+<thead class="bg-surface-dark-lighter text-xs uppercase text-gray-500 font-semibold border-b border-border-dark">
+<tr>
+<th class="px-6 py-3">Vehicle No.</th>
+<th class="px-6 py-3">Type</th>
+<th class="px-6 py-3">Capacity</th>
+<th class="px-6 py-3">Current Route</th>
+<th class="px-6 py-3">Driver</th>
+<th class="px-6 py-3 text-right">Status</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-dark">
+<tr class="hover:bg-surface-dark-lighter/50 transition-colors">
+<td class="px-6 py-4 font-medium text-white">TN-01-AB-1234</td>
+<td class="px-6 py-4">Bus (Non-AC)</td>
+<td class="px-6 py-4">52 Seats</td>
+<td class="px-6 py-4">Campus - Hospital</td>
+<td class="px-6 py-4">Rajesh Kumar</td>
+<td class="px-6 py-4 text-right">
+<span class="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded text-xs border border-emerald-500/20">Active</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-dark-lighter/50 transition-colors">
+<td class="px-6 py-4 font-medium text-white">TN-01-XY-9876</td>
+<td class="px-6 py-4">Mini Van</td>
+<td class="px-6 py-4">12 Seats</td>
+<td class="px-6 py-4 text-gray-600 italic">None</td>
+<td class="px-6 py-4">Suresh M.</td>
+<td class="px-6 py-4 text-right">
+<span class="bg-gray-500/10 text-gray-400 px-2 py-0.5 rounded text-xs border border-gray-500/20">Idle</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-dark-lighter/50 transition-colors">
+<td class="px-6 py-4 font-medium text-white">TN-01-CC-4521</td>
+<td class="px-6 py-4">Bus (AC)</td>
+<td class="px-6 py-4">48 Seats</td>
+<td class="px-6 py-4">RHTC Trip</td>
+<td class="px-6 py-4">Manoj Singh</td>
+<td class="px-6 py-4 text-right">
+<span class="bg-yellow-500/10 text-yellow-400 px-2 py-0.5 rounded text-xs border border-yellow-500/20">Maintenance</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-dark-lighter/50 transition-colors">
+<td class="px-6 py-4 font-medium text-white">TN-01-AB-2222</td>
+<td class="px-6 py-4">Ambulance</td>
+<td class="px-6 py-4">2 Stretchers</td>
+<td class="px-6 py-4">Emergency Standby</td>
+<td class="px-6 py-4">Prakash D.</td>
+<td class="px-6 py-4 text-right">
+<span class="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded text-xs border border-emerald-500/20">Active</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="grid grid-cols-12 gap-6">
+<div class="col-span-12 lg:col-span-5 bg-surface-dark border border-border-dark rounded-xl p-6">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-sm font-bold text-white flex items-center gap-2">
+<span class="material-symbols-outlined text-gray-400">event_seat</span> Trip Booking
+                                </h3>
+<span class="text-xs text-emerald-500 font-medium cursor-pointer hover:underline">View All Requests</span>
+</div>
+<form class="space-y-4">
+<div>
+<label class="block text-xs font-medium text-gray-400 mb-1.5">Department</label>
+<select class="w-full bg-surface-dark-lighter border border-border-dark text-gray-300 text-sm rounded-lg px-3 py-2.5 focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:border-emerald-500">
+<option>Community Medicine (RHTC)</option>
+<option>Forensic Medicine</option>
+<option>Anatomy (Field Visit)</option>
+</select>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div>
+<label class="block text-xs font-medium text-gray-400 mb-1.5">Date</label>
+<input class="w-full bg-surface-dark-lighter border border-border-dark text-gray-300 text-sm rounded-lg px-3 py-2.5 focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:border-emerald-500" type="date"/>
+</div>
+<div>
+<label class="block text-xs font-medium text-gray-400 mb-1.5">Time</label>
+<input class="w-full bg-surface-dark-lighter border border-border-dark text-gray-300 text-sm rounded-lg px-3 py-2.5 focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:border-emerald-500" type="time"/>
+</div>
+</div>
+<div>
+<label class="block text-xs font-medium text-gray-400 mb-1.5">Student Count</label>
+<input class="w-full bg-surface-dark-lighter border border-border-dark text-gray-300 text-sm rounded-lg px-3 py-2.5 focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:border-emerald-500" placeholder="Enter number of students" type="number"/>
+</div>
+<div class="pt-2">
+<button class="w-full bg-primary hover:bg-primary-dark text-white font-medium py-2.5 rounded-lg transition-colors shadow-sm" type="button">
+                                        Request Vehicle
+                                    </button>
+</div>
+</form>
+</div>
+<div class="col-span-12 lg:col-span-7 bg-surface-dark border border-border-dark rounded-xl overflow-hidden flex flex-col">
+<div class="px-6 py-4 border-b border-border-dark flex justify-between items-center bg-surface-dark">
+<h3 class="text-sm font-bold text-white flex items-center gap-2">
+<span class="material-symbols-outlined text-gray-400">build</span> Maintenance Log
+                                </h3>
+<button class="text-gray-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined text-sm">filter_list</span>
+</button>
+</div>
+<div class="flex-1 overflow-auto">
+<table class="w-full text-left text-xs">
+<thead class="bg-surface-dark-lighter text-gray-500 font-semibold sticky top-0">
+<tr>
+<th class="px-6 py-3">Date</th>
+<th class="px-6 py-3">Vehicle</th>
+<th class="px-6 py-3">Service Type</th>
+<th class="px-6 py-3 text-right">Cost (₹)</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-dark bg-surface-dark text-gray-300">
+<tr class="hover:bg-surface-dark-lighter/50 transition-colors">
+<td class="px-6 py-3 text-gray-400">Oct 24, 2023</td>
+<td class="px-6 py-3 font-medium">TN-01-CC-4521</td>
+<td class="px-6 py-3"><span class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Engine Breakdown</span></td>
+<td class="px-6 py-3 text-right font-mono text-gray-300">12,500</td>
+</tr>
+<tr class="hover:bg-surface-dark-lighter/50 transition-colors">
+<td class="px-6 py-3 text-gray-400">Oct 20, 2023</td>
+<td class="px-6 py-3 font-medium">TN-01-AB-1234</td>
+<td class="px-6 py-3"><span class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Routine Service</span></td>
+<td class="px-6 py-3 text-right font-mono text-gray-300">4,200</td>
+</tr>
+<tr class="hover:bg-surface-dark-lighter/50 transition-colors">
+<td class="px-6 py-3 text-gray-400">Oct 18, 2023</td>
+<td class="px-6 py-3 font-medium">TN-01-XY-9876</td>
+<td class="px-6 py-3"><span class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span> Tire Replacement</span></td>
+<td class="px-6 py-3 text-right font-mono text-gray-300">8,000</td>
+</tr>
+<tr class="hover:bg-surface-dark-lighter/50 transition-colors">
+<td class="px-6 py-3 text-gray-400">Oct 15, 2023</td>
+<td class="px-6 py-3 font-medium">TN-01-AB-2222</td>
+<td class="px-6 py-3"><span class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Oil Change</span></td>
+<td class="px-6 py-3 text-right font-mono text-gray-300">2,500</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="px-6 py-3 border-t border-border-dark bg-surface-dark-lighter/20 flex justify-between items-center">
+<span class="text-xs text-gray-500">Total Monthly Cost</span>
+<span class="text-sm font-bold text-white">₹ 27,200</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+
+</body></html>
+
+<!-- Acolyte Admissions Management Dashboard -->
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Acolyte Settings - Role Matrix</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#10b981",
+                        "primary-dark": "#059669",
+                        "background-light": "#f6f8f7",
+                        "background-dark": "#111111",
+                        "surface-dark": "#141414",
+                        "surface-dark-lighter": "#262626",
+                        "border-dark": "#1E1E1E",
+                        "sidebar": "#0A0A0A",
+                        "content-bg": "#111111",
+                        "emerald-accent": "#10B981"
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #171717;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #404040;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #525252;
+        }.custom-checkbox {
+            appearance: none;
+            background-color: transparent;
+            margin: 0;
+            font: inherit;
+            color: currentColor;
+            width: 1.15em;
+            height: 1.15em;
+            border: 1px solid #404040;
+            border-radius: 0.15em;
+            display: grid;
+            place-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .custom-checkbox::before {
+            content: "";
+            width: 0.65em;
+            height: 0.65em;
+            transform: scale(0);
+            transition: 120ms transform ease-in-out;
+            box-shadow: inset 1em 1em white;
+            transform-origin: center;
+            clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+        }
+        .custom-checkbox:checked {
+            background-color: #10b981;
+            border-color: #10b981;
+        }
+        .custom-checkbox:checked::before {
+            transform: scale(1);
+        }
+        .custom-checkbox:disabled {
+            border-color: #262626;
+            cursor: not-allowed;
+            background-color: #1a1a1a;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-content-bg text-gray-900 dark:text-gray-100 font-display antialiased min-h-screen flex overflow-hidden">
+<aside class="w-[240px] bg-sidebar border-r border-border-dark flex flex-col shrink-0 h-screen sticky top-0 z-40 hidden md:flex">
+<div class="h-16 flex items-center px-6 border-b border-border-dark">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-primary flex items-center justify-center text-white font-bold text-lg">A</div>
+<span class="text-xl font-bold tracking-tight text-primary">ACOLYTE</span>
+</div>
+</div>
+<nav class="flex-1 overflow-y-auto custom-scrollbar py-6 space-y-8 px-4">
+<div>
+<div class="mb-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Overview</div>
+<ul class="space-y-1">
+<li>
+<a class="flex items-center gap-3 px-3 py-2 text-gray-400 rounded-lg hover:bg-gray-800 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-xl group-hover:text-gray-300 transition-colors">dashboard</span>
+<span class="text-sm font-medium">Dashboard</span>
+</a>
+</li>
+</ul>
+</div>
+<div>
+<div class="mb-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Academics</div>
+<ul class="space-y-1">
+<li>
+<a class="flex items-center gap-3 px-3 py-2 text-gray-400 rounded-lg hover:bg-gray-800 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-xl group-hover:text-gray-300 transition-colors">school</span>
+<span class="text-sm font-medium">Programs</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-3 py-2 text-gray-400 rounded-lg hover:bg-gray-800 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-xl group-hover:text-gray-300 transition-colors">calendar_month</span>
+<span class="text-sm font-medium">Timetable</span>
+</a>
+</li>
+</ul>
+</div>
+<div>
+<div class="mb-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Configuration</div>
+<ul class="space-y-1">
+<li>
+<a class="flex items-center gap-3 px-3 py-2 text-gray-400 rounded-lg hover:bg-gray-800 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-xl group-hover:text-gray-300 transition-colors">settings</span>
+<span class="text-sm font-medium">General</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-3 py-2 bg-primary/10 text-white rounded-lg border-l-4 border-primary transition-all" href="#">
+<span class="material-symbols-outlined text-xl text-primary">admin_panel_settings</span>
+<span class="text-sm font-medium">Role &amp; Permissions</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-3 py-2 text-gray-400 rounded-lg hover:bg-gray-800 hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-xl group-hover:text-gray-300 transition-colors">group</span>
+<span class="text-sm font-medium">Users</span>
+</a>
+</li>
+</ul>
+</div>
+</nav>
+<div class="p-4 border-t border-border-dark">
+<div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors">
+<div class="w-8 h-8 rounded-full bg-gradient-to-tr from-gray-700 to-gray-600 overflow-hidden ring-1 ring-gray-600">
+<img alt="Dr. Sharma" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBsGmQ8ZyMA16lEZfPBk54IztNQ8YPUxJ-imS1cnR9ys9CpAFyw3sVHyckPuda0oI7_3U--rE5YllDESLp3AnfGEJ9bDV7xAqvzokbxsXX-xl73RVWsi8p8WHouo5GA-LD72VbinXWoRn4Xsf4zltyLR1yetirOOU4HPVZm3nx_9gKFavT2fpnBH-TQ_T7b-KhCwt2ruw8Sf5dF_8Hr3uzttDPC5qxxF_PPshYrffw2Y2ieQ-UQyq5CpIF3X3wFDtBniRqxuBoUGW6I"/>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-medium text-white truncate">Dr. A. Sharma</p>
+<p class="text-xs text-gray-500 truncate">Dean of Faculty</p>
+</div>
+</div>
+</div>
+</aside>
+<div class="flex-1 flex flex-col h-screen overflow-hidden relative">
+<header class="h-16 bg-white dark:bg-sidebar border-b border-gray-200 dark:border-border-dark flex items-center justify-between px-6 shrink-0 z-30">
+<div class="flex items-center gap-2">
+<button class="md:hidden mr-2 text-gray-500">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<nav class="flex items-center text-sm font-medium text-gray-500 dark:text-gray-400">
+<span class="hover:text-gray-900 dark:hover:text-white cursor-pointer">Settings</span>
+<span class="mx-2 text-gray-600">/</span>
+<span class="text-gray-900 dark:text-white font-semibold">Role Matrix</span>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center bg-surface-dark border border-border-dark rounded-lg p-1">
+<div class="relative">
+<span class="absolute inset-y-0 left-0 flex items-center pl-2">
+<span class="material-symbols-outlined text-gray-500 text-lg">search</span>
+</span>
+<input class="bg-surface-dark-lighter text-sm text-gray-300 rounded border-none pl-8 pr-3 py-1.5 focus:ring-1 focus:ring-primary w-48 placeholder-gray-600" placeholder="Search roles..." type="text"/>
+</div>
+</div>
+<div class="h-6 w-px bg-border-dark"></div>
+<button class="relative p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-surface-dark-lighter rounded-full transition-colors">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-sidebar"></span>
+</button>
+</div>
+</header>
+<main class="flex-1 flex overflow-hidden">
+<div class="flex-1 flex flex-col overflow-hidden bg-background-dark relative">
+<div class="flex-1 overflow-auto custom-scrollbar p-6 space-y-6">
+<div class="flex items-end justify-between">
+<div>
+<h1 class="text-2xl font-bold text-white">Role &amp; Permissions</h1>
+<p class="text-gray-400 text-sm mt-1">Configure access levels and permissions across the ERP modules.</p>
+</div>
+<div class="flex gap-3">
+<button class="px-4 py-2 rounded-lg border border-border-dark bg-surface-dark hover:bg-surface-dark-lighter text-gray-300 text-sm font-medium transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">history</span> Audit Log
+                            </button>
+<button class="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-sm font-medium shadow-lg shadow-emerald-900/20 transition-all flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">save</span> Save Permissions
+                            </button>
+</div>
+</div>
+<div class="bg-surface-dark border border-border-dark rounded-xl overflow-hidden shadow-xl">
+<div class="border-b border-border-dark px-6 py-4 flex items-center justify-between bg-surface-dark-lighter/30">
+<div class="flex items-center gap-4">
+<h3 class="text-base font-semibold text-white">Permission Matrix</h3>
+<span class="bg-blue-500/10 text-blue-400 text-xs px-2 py-0.5 rounded border border-blue-500/20">6 Roles Configured</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="text-xs text-gray-400 hover:text-white flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">filter_list</span> Filter
+                                </button>
+<div class="h-4 w-px bg-border-dark mx-2"></div>
+<button class="text-xs text-primary hover:text-primary-dark flex items-center gap-1 font-medium">
+<span class="material-symbols-outlined text-sm">add</span> Add New Role
+                                </button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-dark-lighter border-b border-border-dark">
+<th class="sticky left-0 z-20 bg-surface-dark-lighter px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[200px] border-r border-border-dark">Module Access</th>
+<th class="px-4 py-3 text-center min-w-[120px]">
+<div class="flex flex-col items-center gap-1">
+<span class="text-sm font-semibold text-white">Super Admin</span>
+<span class="text-[10px] text-emerald-500 bg-emerald-500/10 px-1.5 rounded">Full Access</span>
+</div>
+</th>
+<th class="px-4 py-3 text-center min-w-[120px]">
+<div class="flex flex-col items-center gap-1">
+<span class="text-sm font-semibold text-white">Dean</span>
+<span class="text-[10px] text-gray-500">Academic Head</span>
+</div>
+</th>
+<th class="px-4 py-3 text-center min-w-[120px]">
+<div class="flex flex-col items-center gap-1">
+<span class="text-sm font-semibold text-white">HOD</span>
+<span class="text-[10px] text-gray-500">Dept. Lead</span>
+</div>
+</th>
+<th class="px-4 py-3 text-center min-w-[120px]">
+<div class="flex flex-col items-center gap-1">
+<span class="text-sm font-semibold text-white">Faculty</span>
+<span class="text-[10px] text-gray-500">Teaching Staff</span>
+</div>
+</th>
+<th class="px-4 py-3 text-center min-w-[120px]">
+<div class="flex flex-col items-center gap-1">
+<span class="text-sm font-semibold text-white">Warden</span>
+<span class="text-[10px] text-gray-500">Hostel Admin</span>
+</div>
+</th>
+<th class="px-4 py-3 text-center min-w-[120px]">
+<div class="flex flex-col items-center gap-1">
+<span class="text-sm font-semibold text-white">Accountant</span>
+<span class="text-[10px] text-gray-500">Finance</span>
+</div>
+</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-dark text-sm">
+<tr class="hover:bg-surface-dark-lighter/30 transition-colors group">
+<td class="sticky left-0 z-10 bg-surface-dark group-hover:bg-surface-dark-lighter/30 px-6 py-4 border-r border-border-dark">
+<div class="flex items-center gap-3">
+<div class="p-2 rounded bg-blue-500/10 text-blue-400">
+<span class="material-symbols-outlined">school</span>
+</div>
+<div>
+<p class="font-medium text-white">Student Records</p>
+<p class="text-xs text-gray-500">Profiles, Enrollment</p>
+</div>
+</div>
+</td>
+<td class="text-center p-4 bg-emerald-500/5"><input checked="" class="custom-checkbox mx-auto" disabled="" type="checkbox"/></td>
+<td class="text-center p-4"><input checked="" class="custom-checkbox mx-auto" type="checkbox"/></td>
+<td class="text-center p-4"><input checked="" class="custom-checkbox mx-auto" type="checkbox"/></td>
+<td class="text-center p-4"><input checked="" class="custom-checkbox mx-auto" type="checkbox"/></td>
+<td class="text-center p-4"><input checked="" class="custom-checkbox mx-auto" type="checkbox"/></td>
+<td class="text-center p-4"><input class="custom-checkbox mx-auto opacity-50" type="checkbox"/></td>
+</tr>
+<tr class="hover:bg-surface-dark-lighter/30 transition-colors group">
+<td class="sticky left-0 z-10 bg-surface-dark group-hover:bg-surface-dark-lighter/30 px-6 py-4 border-r border-border-dark">
+<div class="flex items-center gap-3">
+<div class="p-2 rounded bg-purple-500/10 text-purple-400">
+<span class="material-symbols-outlined">person_apron</span>
+</div>
+<div>
+<p class="font-medium text-white">Faculty Mgmt</p>
+<p class="text-xs text-gray-500">Staff profiles, HR</p>
+</div>
+</div>
+</td>
+<td class="text-center p-4 bg-emerald-500/5"><input checked="" class="custom-checkbox mx-auto" disabled="" type="checkbox"/></td>
+<td class="text-center p-4"><input checked="" class="custom-checkbox mx-auto" type="checkbox"/></td>
+<td class="text-center p-4"><input checked="" class="custom-checkbox mx-auto" type="checkbox"/></td>
+<td class="text-center p-4"><input class="custom-checkbox mx-auto opacity-50" type="checkbox"/></td>
+<td class="text-center p-4"><input class="custom-checkbox mx-auto opacity-50" type="checkbox"/></td>
+<td class="text-center p-4"><input class="custom-checkbox mx-auto opacity-50" type="checkbox"/></td>
+</tr>
+<tr class="hover:bg-surface-dark-lighter/30 transition-colors group">
+<td class="sticky left-0 z-10 bg-surface-dark group-hover:bg-surface-dark-lighter/30 px-6 py-4 border-r border-border-dark">
+<div class="flex items-center gap-3">
+<div class="p-2 rounded bg-yellow-500/10 text-yellow-400">
+<span class="material-symbols-outlined">payments</span>
+</div>
+<div>
+<p class="font-medium text-white">Fees &amp; Finance</p>
+<p class="text-xs text-gray-500">Invoices, Payments</p>
+</div>
+</div>
+</td>
+<td class="text-center p-4 bg-emerald-500/5"><input checked="" class="custom-checkbox mx-auto" disabled="" type="checkbox"/></td>
+<td class="text-center p-4"><input checked="" class="custom-checkbox mx-auto" type="checkbox"/></td>
+<td class="text-center p-4"><input class="custom-checkbox mx-auto opacity-50" type="checkbox"/></td>
+<td class="text-center p-4"><input class="custom-checkbox mx-auto opacity-50" type="checkbox"/></td>
+<td class="text-center p-4"><input class="custom-checkbox mx-auto opacity-50" type="checkbox"/></td>
+<td class="text-center p-4"><input checked="" class="custom-checkbox mx-auto" type="checkbox"/></td>
+</tr>
+<tr class="hover:bg-surface-dark-lighter/30 transition-colors group">
+<td class="sticky left-0 z-10 bg-surface-dark group-hover:bg-surface-dark-lighter/30 px-6 py-4 border-r border-border-dark">
+<div class="flex items-center gap-3">
+<div class="p-2 rounded bg-red-500/10 text-red-400">
+<span class="material-symbols-outlined">gavel</span>
+</div>
+<div>
+<p class="font-medium text-white">Compliance</p>
+<p class="text-xs text-gray-500">NMC rules, audits</p>
+</div>
+</div>
+</td>
+<td class="text-center p-4 bg-emerald-500/5"><input checked="" class="custom-checkbox mx-auto" disabled="" type="checkbox"/></td>
+<td class="text-center p-4"><input checked="" class="custom-checkbox mx-auto" type="checkbox"/></td>
+<td class="text-center p-4"><input checked="" class="custom-checkbox mx-auto" type="checkbox"/></td>
+<td class="text-center p-4"><input class="custom-checkbox mx-auto opacity-50" type="checkbox"/></td>
+<td class="text-center p-4"><input class="custom-checkbox mx-auto opacity-50" type="checkbox"/></td>
+<td class="text-center p-4"><input class="custom-checkbox mx-auto opacity-50" type="checkbox"/></td>
+</tr>
+<tr class="hover:bg-surface-dark-lighter/30 transition-colors group">
+<td class="sticky left-0 z-10 bg-surface-dark group-hover:bg-surface-dark-lighter/30 px-6 py-4 border-r border-border-dark">
+<div class="flex items-center gap-3">
+<div class="p-2 rounded bg-indigo-500/10 text-indigo-400">
+<span class="material-symbols-outlined">analytics</span>
+</div>
+<div>
+<p class="font-medium text-white">Reports &amp; Analytics</p>
+<p class="text-xs text-gray-500">All data exports</p>
+</div>
+</div>
+</td>
+<td class="text-center p-4 bg-emerald-500/5"><input checked="" class="custom-checkbox mx-auto" disabled="" type="checkbox"/></td>
+<td class="text-center p-4"><input checked="" class="custom-checkbox mx-auto" type="checkbox"/></td>
+<td class="text-center p-4"><input checked="" class="custom-checkbox mx-auto" type="checkbox"/></td>
+<td class="text-center p-4"><input checked="" class="custom-checkbox mx-auto" type="checkbox"/></td>
+<td class="text-center p-4"><input checked="" class="custom-checkbox mx-auto" type="checkbox"/></td>
+<td class="text-center p-4"><input checked="" class="custom-checkbox mx-auto" type="checkbox"/></td>
+</tr>
+<tr class="hover:bg-surface-dark-lighter/30 transition-colors group">
+<td class="sticky left-0 z-10 bg-surface-dark group-hover:bg-surface-dark-lighter/30 px-6 py-4 border-r border-border-dark">
+<div class="flex items-center gap-3">
+<div class="p-2 rounded bg-gray-500/10 text-gray-400">
+<span class="material-symbols-outlined">settings</span>
+</div>
+<div>
+<p class="font-medium text-white">System Settings</p>
+<p class="text-xs text-gray-500">Global config</p>
+</div>
+</div>
+</td>
+<td class="text-center p-4 bg-emerald-500/5"><input checked="" class="custom-checkbox mx-auto" disabled="" type="checkbox"/></td>
+<td class="text-center p-4"><input class="custom-checkbox mx-auto opacity-50" type="checkbox"/></td>
+<td class="text-center p-4"><input class="custom-checkbox mx-auto opacity-50" type="checkbox"/></td>
+<td class="text-center p-4"><input class="custom-checkbox mx-auto opacity-50" type="checkbox"/></td>
+<td class="text-center p-4"><input class="custom-checkbox mx-auto opacity-50" type="checkbox"/></td>
+<td class="text-center p-4"><input class="custom-checkbox mx-auto opacity-50" type="checkbox"/></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+<div class="xl:col-span-1 bg-surface-dark border border-border-dark rounded-xl p-5">
+<h3 class="text-base font-semibold text-white mb-4">Role Details</h3>
+<div class="space-y-4">
+<div>
+<label class="block text-xs font-medium text-gray-400 mb-1.5">Role Name</label>
+<input class="w-full bg-surface-dark-lighter border border-border-dark rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all" type="text" value="HOD"/>
+</div>
+<div>
+<label class="block text-xs font-medium text-gray-400 mb-1.5">Description</label>
+<textarea class="w-full bg-surface-dark-lighter border border-border-dark rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all h-24 resize-none">Head of Department with access to departmental student data, faculty management, and internal reporting.</textarea>
+</div>
+<div class="pt-2">
+<label class="flex items-center gap-2 cursor-pointer">
+<input checked="" class="custom-checkbox" type="checkbox"/>
+<span class="text-sm text-gray-300">Active Role</span>
+</label>
+</div>
+</div>
+</div>
+<div class="xl:col-span-2 bg-surface-dark border border-border-dark rounded-xl p-5">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-base font-semibold text-white">Granular Access Control: <span class="text-primary">HOD</span></h3>
+<div class="flex gap-2 text-xs">
+<span class="flex items-center gap-1 text-gray-400"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Enabled</span>
+<span class="flex items-center gap-1 text-gray-400"><span class="w-2 h-2 rounded-full bg-gray-600"></span> Disabled</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="bg-surface-dark-lighter/30 border border-border-dark rounded-lg p-4">
+<div class="flex items-center justify-between mb-3 pb-2 border-b border-border-dark">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-blue-400 text-lg">school</span>
+<span class="text-sm font-medium text-white">Students</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox" value=""/>
+<div class="w-8 h-4 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[0px] after:start-[0px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<div class="grid grid-cols-2 gap-2 text-sm">
+<label class="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer select-none">
+<input checked="" class="custom-checkbox" type="checkbox"/> View
+                                        </label>
+<label class="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer select-none">
+<input checked="" class="custom-checkbox" type="checkbox"/> Edit
+                                        </label>
+<label class="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer select-none">
+<input class="custom-checkbox" type="checkbox"/> Delete
+                                        </label>
+<label class="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer select-none">
+<input checked="" class="custom-checkbox" type="checkbox"/> Export
+                                        </label>
+</div>
+</div>
+<div class="bg-surface-dark-lighter/30 border border-border-dark rounded-lg p-4">
+<div class="flex items-center justify-between mb-3 pb-2 border-b border-border-dark">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-purple-400 text-lg">person_apron</span>
+<span class="text-sm font-medium text-white">Faculty</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox" value=""/>
+<div class="w-8 h-4 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[0px] after:start-[0px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<div class="grid grid-cols-2 gap-2 text-sm">
+<label class="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer select-none">
+<input checked="" class="custom-checkbox" type="checkbox"/> View
+                                        </label>
+<label class="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer select-none">
+<input checked="" class="custom-checkbox" type="checkbox"/> Edit
+                                        </label>
+<label class="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer select-none">
+<input class="custom-checkbox" type="checkbox"/> Delete
+                                        </label>
+<label class="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer select-none">
+<input class="custom-checkbox" type="checkbox"/> Approve Leaves
+                                        </label>
+</div>
+</div>
+<div class="bg-surface-dark-lighter/30 border border-border-dark rounded-lg p-4 opacity-75">
+<div class="flex items-center justify-between mb-3 pb-2 border-b border-border-dark">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-yellow-400 text-lg">payments</span>
+<span class="text-sm font-medium text-white">Fees</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox" value=""/>
+<div class="w-8 h-4 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[0px] after:start-[0px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<div class="grid grid-cols-2 gap-2 text-sm text-gray-500">
+<label class="flex items-center gap-2 cursor-not-allowed">
+<input class="custom-checkbox" disabled="" type="checkbox"/> View
+                                        </label>
+<label class="flex items-center gap-2 cursor-not-allowed">
+<input class="custom-checkbox" disabled="" type="checkbox"/> Edit
+                                        </label>
+<label class="flex items-center gap-2 cursor-not-allowed">
+<input class="custom-checkbox" disabled="" type="checkbox"/> Delete
+                                        </label>
+<label class="flex items-center gap-2 cursor-not-allowed">
+<input class="custom-checkbox" disabled="" type="checkbox"/> Collect
+                                        </label>
+</div>
+</div>
+<div class="bg-surface-dark-lighter/30 border border-border-dark rounded-lg p-4">
+<div class="flex items-center justify-between mb-3 pb-2 border-b border-border-dark">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-red-400 text-lg">gavel</span>
+<span class="text-sm font-medium text-white">Compliance</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox" value=""/>
+<div class="w-8 h-4 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[0px] after:start-[0px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<div class="grid grid-cols-2 gap-2 text-sm">
+<label class="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer select-none">
+<input checked="" class="custom-checkbox" type="checkbox"/> View
+                                        </label>
+<label class="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer select-none">
+<input checked="" class="custom-checkbox" type="checkbox"/> Reports
+                                        </label>
+<label class="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer select-none">
+<input class="custom-checkbox" type="checkbox"/> Configure
+                                        </label>
+<label class="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer select-none">
+<input class="custom-checkbox" type="checkbox"/> Submit
+                                        </label>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+
+</body></html>
