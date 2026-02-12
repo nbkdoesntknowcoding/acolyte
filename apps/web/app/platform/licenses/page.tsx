@@ -123,9 +123,11 @@ export default function LicensesPage() {
               <tr key={lic.id} className="border-b border-dark-border hover:bg-dark-elevated">
                 <td className="px-4 py-2.5">
                   <Link href={`/platform/licenses/${lic.id}`} className="font-medium text-white hover:text-brand-500">
-                    {lic.plan_name}
+                    {lic.college_name || lic.plan_name}
                   </Link>
-                  <p className="text-[10px] text-gray-500">{lic.college_id.slice(0, 8)}...</p>
+                  <p className="text-[10px] text-gray-500">
+                    {lic.plan_name} &middot; {lic.college_id.slice(0, 8)}...
+                  </p>
                 </td>
                 <td className="px-3 py-2.5">
                   <span className="rounded bg-dark-elevated px-1.5 py-0.5 text-[10px] font-medium text-gray-300">
@@ -134,10 +136,10 @@ export default function LicensesPage() {
                 </td>
                 <td className="px-3 py-2.5"><StatusBadge status={lic.status} /></td>
                 <td className="px-3 py-2.5">
-                  <UsageBar current={0} limit={lic.max_students} />
+                  <UsageBar current={lic.current_students ?? 0} limit={lic.max_students} />
                 </td>
                 <td className="px-3 py-2.5">
-                  <UsageBar current={0} limit={lic.monthly_ai_token_budget} />
+                  <UsageBar current={lic.ai_tokens_month_to_date ?? 0} limit={lic.monthly_ai_token_budget} />
                 </td>
                 <td className="px-3 py-2.5 text-xs text-gray-400">
                   {lic.expires_at ? new Date(lic.expires_at).toLocaleDateString() : '--'}

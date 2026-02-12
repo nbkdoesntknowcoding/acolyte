@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { label: 'System Health', href: '/platform/health', icon: '♥' },
   { label: 'AI Costs', href: '/platform/ai-costs', icon: '$' },
   { label: 'Alerts', href: '/platform/alerts', icon: '!' },
+  { label: 'Audit Log', href: '/platform/audit-log', icon: '▤' },
 ];
 
 function StatusDot({ status }: { status: string }) {

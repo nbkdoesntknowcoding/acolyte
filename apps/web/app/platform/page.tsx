@@ -14,6 +14,8 @@ import {
   useAlerts,
   useLicenses,
   useHealthOverview,
+  useAICosts,
+  useHealthMetrics,
 } from '@/lib/platform-api';
 
 // ---------------------------------------------------------------------------
@@ -75,6 +77,8 @@ export default function PlatformDashboard() {
     expiring_within_days: 30,
     per_page: 10,
   });
+  const { data: aiCosts } = useAICosts();
+  const { data: dauMetrics } = useHealthMetrics('api', 'requests_count');
 
   const systemColor =
     health?.system_status === 'healthy'
@@ -83,12 +87,35 @@ export default function PlatformDashboard() {
         ? 'text-yellow-400'
         : 'text-red-400';
 
-  // Placeholder chart data (would come from snapshots in production)
-  const chartData = Array.from({ length: 30 }, (_, i) => ({
-    day: `${i + 1}`,
-    users: Math.floor(Math.random() * 200 + 50),
-    cost: +(Math.random() * 5 + 1).toFixed(2),
-  }));
+  // DAU chart from health metrics
+  const dauChartData = (dauMetrics ?? [])
+    .slice()
+    .reverse()
+    .map((p) => ({
+      day: new Date(p.timestamp).toLocaleDateString([], {
+        month: 'short',
+        day: 'numeric',
+      }),
+      users: p.value,
+    }));
+
+  // AI cost trend from health metrics
+  const costChartData = aiCosts
+    ? [
+        {
+          day: 'Today',
+          cost: aiCosts.total_cost_today_usd,
+        },
+        {
+          day: 'Month',
+          cost: aiCosts.total_cost_this_month_usd,
+        },
+        {
+          day: 'Projected',
+          cost: aiCosts.projected_monthly_cost_usd,
+        },
+      ]
+    : [];
 
   if (loadingAnalytics) {
     return (
@@ -135,79 +162,91 @@ export default function PlatformDashboard() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="rounded-lg border border-dark-border bg-dark-surface p-4">
           <h3 className="mb-3 text-sm font-medium text-gray-400">
-            Daily Active Users (30d)
+            API Requests Trend
           </h3>
           <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <XAxis
-                  dataKey="day"
-                  tick={{ fill: '#666', fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fill: '#666', fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: '#111',
-                    border: '1px solid #333',
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="users"
-                  stroke="#00C853"
-                  fill="#00C853"
-                  fillOpacity={0.1}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {dauChartData.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-xs text-gray-600">
+                No metrics data yet. Charts will populate as health metrics are collected.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={dauChartData}>
+                  <XAxis
+                    dataKey="day"
+                    tick={{ fill: '#666', fontSize: 10 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fill: '#666', fontSize: 10 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: '#111',
+                      border: '1px solid #333',
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="users"
+                    stroke="#00C853"
+                    fill="#00C853"
+                    fillOpacity={0.1}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
         <div className="rounded-lg border border-dark-border bg-dark-surface p-4">
           <h3 className="mb-3 text-sm font-medium text-gray-400">
-            AI Costs Trend (30d)
+            AI Costs Overview
           </h3>
           <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <XAxis
-                  dataKey="day"
-                  tick={{ fill: '#666', fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fill: '#666', fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v) => `$${v}`}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: '#111',
-                    border: '1px solid #333',
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                  formatter={(v: number) => [`$${v}`, 'Cost']}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="cost"
-                  stroke="#6366f1"
-                  fill="#6366f1"
-                  fillOpacity={0.1}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {costChartData.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-xs text-gray-600">
+                No AI cost data yet. Costs appear once colleges start using AI features.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={costChartData}>
+                  <XAxis
+                    dataKey="day"
+                    tick={{ fill: '#666', fontSize: 10 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fill: '#666', fontSize: 10 }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v) => `$${v}`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: '#111',
+                      border: '1px solid #333',
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                    formatter={(v: number) => [`$${v.toFixed(2)}`, 'Cost']}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="cost"
+                    stroke="#6366f1"
+                    fill="#6366f1"
+                    fillOpacity={0.1}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
       </div>
@@ -275,7 +314,7 @@ export default function PlatformDashboard() {
               >
                 <div>
                   <p className="text-xs font-medium text-white">
-                    {lic.plan_name}
+                    {lic.college_name || lic.plan_name}
                   </p>
                   <p className="text-[10px] text-gray-500">
                     {lic.plan_tier} &middot; {lic.status}

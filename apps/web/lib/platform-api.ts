@@ -39,6 +39,12 @@ export interface LicenseResponse {
   created_at: string;
   updated_at: string;
   created_by: string | null;
+  // Enriched fields from list endpoint
+  college_name?: string;
+  current_students?: number;
+  current_faculty?: number;
+  ai_tokens_month_to_date?: number;
+  storage_used_gb_current?: number;
 }
 
 export interface PaginatedResponse<T> {
@@ -189,16 +195,34 @@ export interface OnboardingStatusEntry {
   is_stalled: boolean;
 }
 
+export interface AuditLogEntry {
+  id: string;
+  actor_id: string;
+  actor_email: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  changes: Record<string, unknown> | null;
+  created_at: string;
+}
+
 // ---------------------------------------------------------------------------
 // Fetcher factory (not a hook — creates a fetch function from a token getter)
 // ---------------------------------------------------------------------------
 
-function createFetcher(getToken: () => Promise<string | null>) {
+function createFetcher(
+  getToken: (opts?: { template?: string }) => Promise<string | null>
+) {
   return async function <T>(
     path: string,
     options?: RequestInit
   ): Promise<T> {
-    const token = await getToken();
+    // Use the acolyte-session JWT template which includes public_metadata.
+    // Falls back to default session token if template doesn't exist.
+    let token = await getToken({ template: 'acolyte-session' });
+    if (!token) {
+      token = await getToken();
+    }
     const res = await fetch(`${API_BASE}/api/v1/platform${path}`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -347,6 +371,26 @@ export function useOnboardingStatus(): UseQueryResult<
   });
 }
 
+export function useAuditLog(filters: {
+  action?: string;
+  entity_type?: string;
+  page?: number;
+  per_page?: number;
+}): UseQueryResult<PaginatedResponse<AuditLogEntry>> {
+  const { getToken } = useAuth();
+  const fetcher = createFetcher(getToken);
+  const params = new URLSearchParams();
+  if (filters.action) params.set('action', filters.action);
+  if (filters.entity_type) params.set('entity_type', filters.entity_type);
+  if (filters.page) params.set('page', String(filters.page));
+  if (filters.per_page) params.set('per_page', String(filters.per_page));
+  return useQuery({
+    queryKey: ['platform', 'audit-log', filters],
+    queryFn: () =>
+      fetcher<PaginatedResponse<AuditLogEntry>>(`/audit-log?${params}`),
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Mutation hooks
 // ---------------------------------------------------------------------------
@@ -378,6 +422,23 @@ export function useOnboardCollege() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['platform', 'licenses'] });
       qc.invalidateQueries({ queryKey: ['platform', 'onboarding-status'] });
+    },
+  });
+}
+
+export function useUpdateLicense() {
+  const { getToken } = useAuth();
+  const fetcher = createFetcher(getToken);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      fetcher<LicenseResponse>(`/licenses/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['platform', 'licenses'] });
+      qc.invalidateQueries({ queryKey: ['platform', 'licenses', vars.id] });
     },
   });
 }

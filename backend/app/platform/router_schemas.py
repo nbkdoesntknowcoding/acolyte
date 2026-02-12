@@ -10,6 +10,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.platform.schemas import LicenseResponse
+
 
 # ---------------------------------------------------------------------------
 # License creation (platform admin flow — creates college + license)
@@ -313,3 +315,42 @@ class DataSourceStatus(BaseModel):
     status: str
     last_checked: datetime | None = None
     message: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# License list item (enriched with college name + usage snapshot)
+# ---------------------------------------------------------------------------
+
+
+class LicenseListItem(LicenseResponse):
+    """License enriched with college name and latest usage snapshot data.
+
+    Used by the ``GET /licenses`` list endpoint to include context
+    that would otherwise require separate API calls.
+    """
+
+    college_name: str | None = None
+    current_students: int = 0
+    current_faculty: int = 0
+    ai_tokens_month_to_date: int = 0
+    storage_used_gb_current: float = 0
+
+
+# ---------------------------------------------------------------------------
+# Audit log
+# ---------------------------------------------------------------------------
+
+
+class AuditLogEntryResponse(BaseModel):
+    """Platform audit log entry as returned by the API."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    actor_id: UUID
+    actor_email: str | None
+    action: str
+    entity_type: str
+    entity_id: UUID | None
+    changes: dict[str, Any] | None
+    created_at: datetime

@@ -31,6 +31,7 @@ from app.platform.models import (
     SystemHealthMetric,
 )
 from app.platform.plan_presets import PLAN_PRESETS, get_preset
+from app.config import get_settings
 from app.platform.router_schemas import (
     AICostBreakdownResponse,
     AICostByAgent,
@@ -38,6 +39,7 @@ from app.platform.router_schemas import (
     AICostByModel,
     AlertResolveRequest,
     AnalyticsOverviewResponse,
+    AuditLogEntryResponse,
     ChurnRiskCollege,
     CollegeAnalyticsResponse,
     CollegeOnboardRequest,
@@ -47,6 +49,7 @@ from app.platform.router_schemas import (
     FeatureAdoptionResponse,
     HealthOverviewResponse,
     LeastEngagedCollege,
+    LicenseListItem,
     LicenseRenewRequest,
     LicenseSuspendRequest,
     LicenseTerminateRequest,
@@ -209,11 +212,18 @@ async def list_licenses(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
 ) -> PaginatedResponse:
-    """List all licenses with filtering, search, and pagination."""
+    """List all licenses with filtering, search, and pagination.
+
+    Enriched with college name and latest usage snapshot data
+    (current_students, current_faculty, ai_tokens_month_to_date).
+    """
     from app.engines.admin.models import College
 
-    # Base query
-    query = select(License)
+    # Always join College for name enrichment
+    query = (
+        select(License, College.name.label("college_name"))
+        .join(College, License.college_id == College.id, isouter=True)
+    )
     count_query = select(func.count(License.id))
 
     # Filters
@@ -229,9 +239,8 @@ async def list_licenses(
         conditions.append(License.expires_at <= cutoff)
         conditions.append(License.expires_at > now)
 
-    # Search requires join with College
+    # Search and state need College join in count query
     if search or state:
-        query = query.join(College, License.college_id == College.id)
         count_query = count_query.join(College, License.college_id == College.id)
         if search:
             search_term = f"%{search}%"
@@ -266,10 +275,49 @@ async def list_licenses(
     query = query.offset(offset).limit(per_page)
 
     result = await db.execute(query)
-    licenses = result.scalars().all()
+    rows = result.all()  # [(License, college_name), ...]
+
+    # Batch-fetch latest snapshot per license for usage enrichment
+    license_ids = [row[0].id for row in rows]
+    snapshots_by_license: dict[UUID, LicenseUsageSnapshot] = {}
+    if license_ids:
+        latest_sub = (
+            select(
+                LicenseUsageSnapshot.license_id,
+                func.max(LicenseUsageSnapshot.snapshot_date).label("max_date"),
+            )
+            .where(LicenseUsageSnapshot.license_id.in_(license_ids))
+            .group_by(LicenseUsageSnapshot.license_id)
+            .subquery()
+        )
+        snap_result = await db.execute(
+            select(LicenseUsageSnapshot).join(
+                latest_sub,
+                (LicenseUsageSnapshot.license_id == latest_sub.c.license_id)
+                & (LicenseUsageSnapshot.snapshot_date == latest_sub.c.max_date),
+            )
+        )
+        snapshots_by_license = {
+            s.license_id: s for s in snap_result.scalars().all()
+        }
+
+    # Build enriched items
+    items = []
+    for lic, college_name in rows:
+        snap = snapshots_by_license.get(lic.id)
+        base = LicenseResponse.model_validate(lic)
+        item = LicenseListItem(
+            **base.model_dump(),
+            college_name=college_name or "Unknown",
+            current_students=snap.active_students if snap else 0,
+            current_faculty=snap.active_faculty if snap else 0,
+            ai_tokens_month_to_date=snap.ai_tokens_month_to_date if snap else 0,
+            storage_used_gb_current=snap.storage_used_gb if snap else 0,
+        )
+        items.append(item)
 
     return PaginatedResponse(
-        items=[LicenseResponse.model_validate(lic) for lic in licenses],
+        items=items,
         total=total,
         page=page,
         per_page=per_page,
@@ -748,36 +796,139 @@ async def onboarding_status(
 
 @router.get("/health/overview", response_model=HealthOverviewResponse)
 async def health_overview(
+    request: Request,
     admin: PlatformAdminUser = Depends(require_platform_admin),
     db: AsyncSession = Depends(get_platform_db),
 ):
-    """System-wide health dashboard data."""
+    """System-wide health dashboard data with live component checks.
+
+    Performs real-time health probes for Database, Redis, Celery, and
+    Permify. Components that aren't running return ``status="unavailable"``
+    instead of crashing. AI Gateway status comes from stored metrics.
+    """
+    import asyncio
+
     components: dict[str, ComponentHealth] = {}
 
-    # Get latest health metrics per component
-    for component in ("database", "redis", "celery", "ai_gateway"):
-        result = await db.execute(
-            select(SystemHealthMetric)
-            .where(
-                SystemHealthMetric.component == component,
-                SystemHealthMetric.metric_name == "overall_health",
+    # 1. Database — live check via SELECT 1 + connection count
+    try:
+        await db.execute(text("SELECT 1"))
+        conn_result = await db.execute(
+            text(
+                "SELECT count(*) FROM pg_stat_activity "
+                "WHERE datname = current_database()"
             )
-            .order_by(SystemHealthMetric.recorded_at.desc())
-            .limit(1)
         )
-        metric = result.scalar_one_or_none()
-        if metric:
-            components[component] = ComponentHealth(
-                status=metric.status,
-                details=metric.details or {},
+        conn_count = conn_result.scalar() or 0
+        db_status = "healthy"
+        if conn_count > 80:
+            db_status = "critical"
+        elif conn_count > 50:
+            db_status = "degraded"
+        components["database"] = ComponentHealth(
+            status=db_status,
+            details={"connections": conn_count, "message": "Connected"},
+        )
+    except Exception as exc:
+        components["database"] = ComponentHealth(
+            status="unhealthy",
+            details={"error": str(exc)[:200]},
+        )
+
+    # 2. Redis — live PING + memory info
+    try:
+        from redis.asyncio import Redis as AIORedis
+
+        settings = get_settings()
+        redis_client = AIORedis.from_url(
+            settings.REDIS_URL, socket_timeout=3, socket_connect_timeout=3
+        )
+        try:
+            await redis_client.ping()
+            info = await redis_client.info("memory")
+            memory_mb = round(info.get("used_memory", 0) / (1024 * 1024), 2)
+            components["redis"] = ComponentHealth(
+                status="healthy",
+                details={"memory_mb": memory_mb, "message": "PONG received"},
+            )
+        finally:
+            await redis_client.aclose()
+    except Exception:
+        components["redis"] = ComponentHealth(
+            status="unavailable",
+            details={"message": "Redis not reachable"},
+        )
+
+    # 3. Celery — inspect workers via run_in_executor
+    try:
+        from app.core.celery_app import celery_app as _celery
+
+        def _inspect_celery():
+            inspector = _celery.control.inspect(timeout=3.0)
+            return inspector.ping() or {}
+
+        loop = asyncio.get_running_loop()
+        ping_result = await loop.run_in_executor(None, _inspect_celery)
+        worker_count = len(ping_result)
+        if worker_count > 0:
+            components["celery"] = ComponentHealth(
+                status="healthy",
+                details={"workers": worker_count},
             )
         else:
-            components[component] = ComponentHealth(
-                status="unknown",
-                details={"message": "No metrics collected yet"},
+            components["celery"] = ComponentHealth(
+                status="unavailable",
+                details={"message": "No Celery workers responding"},
             )
+    except Exception:
+        components["celery"] = ComponentHealth(
+            status="unavailable",
+            details={"message": "Celery not running"},
+        )
 
-    # API component — always "healthy" if we're responding
+    # 4. AI Gateway — from latest stored metric (async-safe)
+    ai_result = await db.execute(
+        select(SystemHealthMetric)
+        .where(
+            SystemHealthMetric.component == "ai_gateway",
+            SystemHealthMetric.metric_name == "overall_health",
+        )
+        .order_by(SystemHealthMetric.recorded_at.desc())
+        .limit(1)
+    )
+    ai_metric = ai_result.scalar_one_or_none()
+    if ai_metric:
+        components["ai_gateway"] = ComponentHealth(
+            status=ai_metric.status,
+            details=ai_metric.details or {},
+        )
+    else:
+        components["ai_gateway"] = ComponentHealth(
+            status="unknown",
+            details={"message": "No AI metrics collected yet"},
+        )
+
+    # 5. Permify — live health check
+    permify = getattr(request.app.state, "permify", None)
+    if permify:
+        try:
+            healthy = await permify.health_check()
+            components["permify"] = ComponentHealth(
+                status="healthy" if healthy else "unhealthy",
+                details={"message": "Connected" if healthy else "Health check failed"},
+            )
+        except Exception:
+            components["permify"] = ComponentHealth(
+                status="unavailable",
+                details={"message": "Permify health check failed"},
+            )
+    else:
+        components["permify"] = ComponentHealth(
+            status="unavailable",
+            details={"message": "Permify client not initialized"},
+        )
+
+    # 6. API — always healthy (we're responding)
     components["api"] = ComponentHealth(
         status="healthy",
         details={"message": "Responding to requests"},
@@ -787,7 +938,7 @@ async def health_overview(
     statuses = [c.status for c in components.values()]
     if "critical" in statuses or "unhealthy" in statuses:
         system_status = "critical"
-    elif "degraded" in statuses:
+    elif "degraded" in statuses or "unavailable" in statuses:
         system_status = "degraded"
     else:
         system_status = "healthy"
@@ -806,7 +957,7 @@ async def health_overview(
     )
     total_active_licenses = lic_count.scalar() or 0
 
-    # Active users today (approximate: count distinct user_id from agent_executions)
+    # Active users today (from AgentExecution if available)
     total_active_users_today = 0
     try:
         from app.engines.ai.models import AgentExecution
@@ -1053,6 +1204,62 @@ async def analytics_overview(
         )
     )
 
+    # Top engaged / least engaged from latest usage snapshots
+    top_engaged: list[EngagedCollege] = []
+    least_engaged: list[LeastEngagedCollege] = []
+    try:
+        latest_sub = (
+            select(
+                LicenseUsageSnapshot.license_id,
+                func.max(LicenseUsageSnapshot.snapshot_date).label("max_date"),
+            )
+            .group_by(LicenseUsageSnapshot.license_id)
+            .subquery()
+        )
+
+        snap_rows = (
+            await db.execute(
+                select(
+                    LicenseUsageSnapshot.total_users,
+                    LicenseUsageSnapshot.feature_usage,
+                    LicenseUsageSnapshot.created_at,
+                    License.college_id,
+                    College.name,
+                )
+                .join(
+                    latest_sub,
+                    (LicenseUsageSnapshot.license_id == latest_sub.c.license_id)
+                    & (LicenseUsageSnapshot.snapshot_date == latest_sub.c.max_date),
+                )
+                .join(License, LicenseUsageSnapshot.license_id == License.id)
+                .join(College, License.college_id == College.id)
+                .where(License.status == "active")
+                .order_by(LicenseUsageSnapshot.total_users.desc())
+            )
+        ).all()
+
+        top_engaged = [
+            EngagedCollege(
+                college_id=cid,
+                name=cname,
+                dau=total_users,
+                feature_usage=fusage or {},
+            )
+            for total_users, fusage, _, cid, cname in snap_rows[:5]
+        ]
+
+        # Least engaged — bottom 5 sorted ascending
+        least_engaged = [
+            LeastEngagedCollege(
+                college_id=cid,
+                name=cname,
+                last_active=cat,
+            )
+            for total_users, _, cat, cid, cname in reversed(snap_rows[-5:])
+        ]
+    except Exception:
+        logger.debug("Could not compute engagement data", exc_info=True)
+
     return AnalyticsOverviewResponse(
         total_licenses=total_lic.scalar() or 0,
         active_licenses=active_lic.scalar() or 0,
@@ -1061,9 +1268,9 @@ async def analytics_overview(
         total_ai_calls_today=ai_calls.scalar() or 0,
         mrr_inr=round(mrr_inr, 2),
         licenses_expiring_30_days=expiring.scalar() or 0,
-        churn_risk_colleges=[],  # TODO: implement churn detection
-        top_engaged_colleges=[],  # TODO: implement engagement tracking
-        least_engaged_colleges=[],  # TODO: implement engagement tracking
+        churn_risk_colleges=[],  # TODO: implement churn prediction model
+        top_engaged_colleges=top_engaged,
+        least_engaged_colleges=least_engaged,
     )
 
 
@@ -1072,35 +1279,77 @@ async def feature_adoption(
     admin: PlatformAdminUser = Depends(require_platform_admin),
     db: AsyncSession = Depends(get_platform_db),
 ):
-    """Which features are being used across all colleges."""
+    """Which features are being used across all colleges.
+
+    Enriched with active_users (sum of total_users from latest snapshots
+    where the feature is enabled) and calls_per_day (from snapshot
+    feature_usage JSONB data).
+    """
     # Get all active licenses
     result = await db.execute(
         select(License).where(License.status == "active")
     )
     licenses = result.scalars().all()
 
-    # Aggregate feature enablement
-    feature_counts: dict[str, int] = {}
+    # Get latest snapshot per license for usage data
+    license_ids = [lic.id for lic in licenses]
+    latest_snaps: dict[UUID, LicenseUsageSnapshot] = {}
+    if license_ids:
+        latest_sub = (
+            select(
+                LicenseUsageSnapshot.license_id,
+                func.max(LicenseUsageSnapshot.snapshot_date).label("max_date"),
+            )
+            .where(LicenseUsageSnapshot.license_id.in_(license_ids))
+            .group_by(LicenseUsageSnapshot.license_id)
+            .subquery()
+        )
+        snap_result = await db.execute(
+            select(LicenseUsageSnapshot).join(
+                latest_sub,
+                (LicenseUsageSnapshot.license_id == latest_sub.c.license_id)
+                & (LicenseUsageSnapshot.snapshot_date == latest_sub.c.max_date),
+            )
+        )
+        latest_snaps = {
+            s.license_id: s for s in snap_result.scalars().all()
+        }
+
+    # Aggregate feature enablement + usage
+    feature_data: dict[str, dict] = {}
     for lic in licenses:
         features = lic.enabled_features or {}
+        snap = latest_snaps.get(lic.id)
         for feat, enabled in features.items():
+            if feat not in feature_data:
+                feature_data[feat] = {
+                    "enabled_count": 0,
+                    "active_users": 0,
+                    "calls_total": 0,
+                }
             if enabled:
-                feature_counts[feat] = feature_counts.get(feat, 0) + 1
+                feature_data[feat]["enabled_count"] += 1
+                if snap:
+                    feature_data[feat]["active_users"] += snap.total_users
+                    usage = snap.feature_usage or {}
+                    if feat in usage:
+                        feature_data[feat]["calls_total"] += usage[feat]
 
     # Build response
-    features = [
+    active_license_count = max(1, len(licenses))
+    features_list = [
         FeatureAdoptionItem(
             feature=feat,
-            enabled_count=count,
-            active_users=0,  # TODO: query actual usage from AgentExecution
-            calls_per_day=0,  # TODO: query actual call frequency
+            enabled_count=data["enabled_count"],
+            active_users=data["active_users"],
+            calls_per_day=round(data["calls_total"] / active_license_count, 1),
         )
-        for feat, count in sorted(
-            feature_counts.items(), key=lambda x: x[1], reverse=True
+        for feat, data in sorted(
+            feature_data.items(), key=lambda x: x[1]["enabled_count"], reverse=True
         )
     ]
 
-    return FeatureAdoptionResponse(features=features)
+    return FeatureAdoptionResponse(features=features_list)
 
 
 @router.get("/analytics/college/{college_id}", response_model=CollegeAnalyticsResponse)
@@ -1305,6 +1554,59 @@ async def resolve_alert(
     )
     await db.flush()
     return PlatformAlertResponse.model_validate(alert)
+
+
+# ===================================================================
+# AUDIT LOG
+# ===================================================================
+
+
+@router.get("/audit-log")
+async def list_audit_log(
+    admin: PlatformAdminUser = Depends(require_platform_admin),
+    db: AsyncSession = Depends(get_platform_db),
+    action: str | None = Query(None, description="Filter by action (e.g. license.create)"),
+    entity_type: str | None = Query(None, description="Filter by entity type (e.g. license)"),
+    actor_email: str | None = Query(None, description="Filter by actor email"),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=200),
+) -> PaginatedResponse:
+    """List platform audit log entries with filtering and pagination.
+
+    Returns platform admin actions: license changes, suspensions,
+    onboarding, alert resolution, etc.
+    """
+    query = select(PlatformAuditLog)
+    count_query = select(func.count(PlatformAuditLog.id))
+
+    conditions = []
+    if action:
+        conditions.append(PlatformAuditLog.action == action)
+    if entity_type:
+        conditions.append(PlatformAuditLog.entity_type == entity_type)
+    if actor_email:
+        conditions.append(PlatformAuditLog.actor_email == actor_email)
+
+    for cond in conditions:
+        query = query.where(cond)
+        count_query = count_query.where(cond)
+
+    total = (await db.execute(count_query)).scalar() or 0
+
+    query = query.order_by(PlatformAuditLog.created_at.desc())
+    offset = (page - 1) * per_page
+    query = query.offset(offset).limit(per_page)
+
+    result = await db.execute(query)
+    entries = result.scalars().all()
+
+    return PaginatedResponse(
+        items=[AuditLogEntryResponse.model_validate(e) for e in entries],
+        total=total,
+        page=page,
+        per_page=per_page,
+        pages=max(1, math.ceil(total / per_page)),
+    )
 
 
 # ===================================================================

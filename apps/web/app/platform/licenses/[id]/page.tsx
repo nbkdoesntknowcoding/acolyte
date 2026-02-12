@@ -9,7 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { useLicenseDetail, useLicenseAction } from '@/lib/platform-api';
+import { useLicenseDetail, useLicenseAction, useUpdateLicense } from '@/lib/platform-api';
 
 function Gauge({
   label,
@@ -78,12 +78,18 @@ function Gauge({
 function FeatureToggle({
   name,
   enabled,
+  onToggle,
 }: {
   name: string;
   enabled: boolean;
+  onToggle?: (name: string, newValue: boolean) => void;
 }) {
   return (
-    <div className="flex items-center justify-between rounded border border-dark-border px-3 py-1.5">
+    <button
+      type="button"
+      onClick={() => onToggle?.(name, !enabled)}
+      className="flex w-full items-center justify-between rounded border border-dark-border px-3 py-1.5 hover:bg-dark-elevated"
+    >
       <span className="text-xs text-gray-300">
         {name.replace(/_/g, ' ')}
       </span>
@@ -94,7 +100,7 @@ function FeatureToggle({
           className={`absolute top-0.5 h-2 w-2 rounded-full bg-white transition-transform ${enabled ? 'translate-x-3' : 'translate-x-0.5'}`}
         />
       </span>
-    </div>
+    </button>
   );
 }
 
@@ -104,6 +110,20 @@ export default function LicenseDetailPage() {
   const id = params.id as string;
   const { data, isLoading, error } = useLicenseDetail(id);
   const licenseAction = useLicenseAction();
+  const updateLicense = useUpdateLicense();
+
+  const handleFeatureToggle = async (featureName: string, newValue: boolean) => {
+    if (!data) return;
+    const updated = { ...data.license.enabled_features, [featureName]: newValue };
+    try {
+      await updateLicense.mutateAsync({
+        id,
+        data: { enabled_features: updated },
+      });
+    } catch {
+      // Error in mutation state
+    }
+  };
 
   if (isLoading) {
     return <div className="flex h-64 items-center justify-center text-gray-500">Loading...</div>;
@@ -223,9 +243,22 @@ export default function LicenseDetailPage() {
         <h3 className="mb-3 text-sm font-medium text-gray-400">Feature Access</h3>
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
           {Object.entries(lic.enabled_features).map(([name, enabled]) => (
-            <FeatureToggle key={name} name={name} enabled={enabled} />
+            <FeatureToggle
+              key={name}
+              name={name}
+              enabled={enabled}
+              onToggle={handleFeatureToggle}
+            />
           ))}
         </div>
+        {updateLicense.isSuccess && (
+          <p className="mt-2 text-xs text-green-400">Feature updated successfully</p>
+        )}
+        {updateLicense.isError && (
+          <p className="mt-2 text-xs text-red-400">
+            Failed to update: {(updateLicense.error as Error).message}
+          </p>
+        )}
       </div>
 
       {/* Usage history chart */}

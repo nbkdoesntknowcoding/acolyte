@@ -74,6 +74,13 @@ export default function AICostsPage() {
     );
   }
 
+  const allZero =
+    data.total_cost_today_usd === 0 &&
+    data.total_cost_this_month_usd === 0 &&
+    data.by_college.length === 0 &&
+    data.by_model.length === 0 &&
+    data.by_agent.length === 0;
+
   // Sort colleges
   const sortedColleges = [...data.by_college].sort((a, b) => {
     const diff = a[sortKey] - b[sortKey];
@@ -147,6 +154,15 @@ export default function AICostsPage() {
           color="text-brand-500"
         />
       </div>
+
+      {allZero && (
+        <div className="rounded-lg border border-dark-border bg-dark-surface p-6 text-center">
+          <p className="text-sm text-gray-400">
+            No AI calls recorded yet. Costs will appear here once colleges
+            start using AI features.
+          </p>
+        </div>
+      )}
 
       {/* Charts row */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
