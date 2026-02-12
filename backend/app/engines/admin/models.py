@@ -1432,33 +1432,5 @@ class TimetableSlot(TenantModel):
     effective_until = Column(Date)
 
 
-# ===================================================================
-# 46. Clinical Rotation
-# ===================================================================
-
-class ClinicalRotation(TenantModel):
-    """Clinical rotation scheduling and tracking."""
-    __tablename__ = "clinical_rotations"
-    __table_args__ = (
-        Index("ix_clinrot_college_student", "college_id", "student_id"),
-        Index("ix_clinrot_college_dept", "college_id", "department_id"),
-    )
-
-    student_id = Column(UUID(as_uuid=True), ForeignKey("students.id"), nullable=False)
-    department_id = Column(UUID(as_uuid=True), ForeignKey("departments.id"), nullable=False)
-    batch_id = Column(UUID(as_uuid=True), ForeignKey("batches.id"), nullable=True)
-    rotation_group = Column(String(20))
-    phase = Column(String(20))
-    start_date = Column(Date, nullable=False)
-    end_date = Column(Date, nullable=False)
-    required_hours = Column(Integer)
-    completed_hours = Column(Integer, default=0)
-    supervisor_faculty_id = Column(UUID(as_uuid=True), ForeignKey("faculty.id"), nullable=True)
-    posting_assessment_score = Column(Float)
-    assessed_by = Column(UUID(as_uuid=True), ForeignKey("faculty.id"), nullable=True)
-    assessed_at = Column(DateTime(timezone=True))
-    status = Column(String(20), default="scheduled")
-    # "scheduled", "active", "completed", "assessed"
-    attendance_percentage = Column(Float)
-    is_crmi = Column(Boolean, default=False)
-    crmi_leave_days_taken = Column(Integer, default=0)
+# NOTE: ClinicalRotation model lives in faculty/models.py (faculty engine owns it).
+# Admin routes import via: from app.engines.faculty import ClinicalRotation

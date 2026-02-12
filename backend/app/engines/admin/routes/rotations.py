@@ -14,7 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies.auth import get_current_user, get_tenant_db, require_role
-from app.engines.admin.models import ClinicalRotation
+from app.engines.faculty import ClinicalRotation
 from app.engines.admin.schemas import (
     ClinicalRotationCreate,
     ClinicalRotationListResponse,
