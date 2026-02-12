@@ -23,8 +23,11 @@ function StatCard({ label, value, color }: { label: string; value: number; color
 }
 
 export default function SystemTestsPage() {
-  const { data: suites, isLoading: suitesLoading, isError: suitesError, error: suitesErrorObj } = useTestSuites();
+  const { data: suites, isLoading: suitesLoading, isError: suitesError, error: suitesErrorObj, status: suitesStatus } = useTestSuites();
   const runTests = useRunTests();
+
+  // Debug: log suite query state
+  console.log('[SystemTests] suites query:', { status: suitesStatus, count: suites?.length, isError: suitesError });
   const [selectedSuite, setSelectedSuite] = useState<string>('');
   const [keyword, setKeyword] = useState('');
   const [results, setResults] = useState<TestRunResult[]>([]);
