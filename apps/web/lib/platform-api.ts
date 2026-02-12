@@ -497,6 +497,8 @@ export function useTestSuites(): UseQueryResult<TestSuite[]> {
   return useQuery({
     queryKey: ['platform', 'tests', 'suites'],
     queryFn: () => fetcher<TestSuite[]>('/tests/suites'),
+    retry: false,
+    refetchOnWindowFocus: false,
   });
 }
 

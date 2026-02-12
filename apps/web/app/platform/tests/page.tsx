@@ -23,7 +23,7 @@ function StatCard({ label, value, color }: { label: string; value: number; color
 }
 
 export default function SystemTestsPage() {
-  const { data: suites, isLoading: suitesLoading } = useTestSuites();
+  const { data: suites, isLoading: suitesLoading, isError: suitesError, error: suitesErrorObj } = useTestSuites();
   const runTests = useRunTests();
   const [selectedSuite, setSelectedSuite] = useState<string>('');
   const [keyword, setKeyword] = useState('');
@@ -126,6 +126,17 @@ export default function SystemTestsPage() {
 
         {suitesLoading && (
           <p className="mt-3 text-xs text-gray-500">Loading test suites...</p>
+        )}
+
+        {suitesError && (
+          <div className="mt-3 rounded-md border border-yellow-500/30 bg-yellow-500/5 px-3 py-2">
+            <p className="text-xs text-yellow-400">
+              Could not load test suites — the backend test-runner endpoint may not be deployed yet.
+            </p>
+            <p className="mt-1 text-[10px] text-gray-500">
+              {(suitesErrorObj as Error)?.message || 'Unknown error'}
+            </p>
+          </div>
         )}
 
         {suites && (
