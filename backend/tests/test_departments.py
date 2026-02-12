@@ -88,33 +88,33 @@ class TestDepartmentNoAuth:
 
     async def test_list_without_token(self, client):
         """GET /departments without Bearer token returns 403."""
-        response = await client.get("/api/v1/departments/")
+        response = await client.get("/api/v1/admin/departments/")
         assert response.status_code == 403
 
     async def test_create_without_token(self, client):
         """POST /departments without Bearer token returns 403."""
         response = await client.post(
-            "/api/v1/departments/",
+            "/api/v1/admin/departments/",
             json={"name": "Anatomy", "code": "ANAT", "nmc_department_type": "preclinical"},
         )
         assert response.status_code == 403
 
     async def test_get_without_token(self, client):
         """GET /departments/{id} without Bearer token returns 403."""
-        response = await client.get(f"/api/v1/departments/{uuid.uuid4()}")
+        response = await client.get(f"/api/v1/admin/departments/{uuid.uuid4()}")
         assert response.status_code == 403
 
     async def test_update_without_token(self, client):
         """PATCH /departments/{id} without Bearer token returns 403."""
         response = await client.patch(
-            f"/api/v1/departments/{uuid.uuid4()}",
+            f"/api/v1/admin/departments/{uuid.uuid4()}",
             json={"name": "Updated"},
         )
         assert response.status_code == 403
 
     async def test_delete_without_token(self, client):
         """DELETE /departments/{id} without Bearer token returns 403."""
-        response = await client.delete(f"/api/v1/departments/{uuid.uuid4()}")
+        response = await client.delete(f"/api/v1/admin/departments/{uuid.uuid4()}")
         assert response.status_code == 403
 
 
@@ -131,7 +131,7 @@ class TestDepartmentRoleAccess:
     async def test_student_cannot_create(self, client):
         _setup_auth(_make_user(role=UserRole.STUDENT))
         r = await client.post(
-            "/api/v1/departments/",
+            "/api/v1/admin/departments/",
             json={"name": "Anatomy", "code": "ANAT", "nmc_department_type": "preclinical"},
         )
         assert r.status_code == 403
@@ -139,7 +139,7 @@ class TestDepartmentRoleAccess:
     async def test_faculty_cannot_create(self, client):
         _setup_auth(_make_user(role=UserRole.FACULTY))
         r = await client.post(
-            "/api/v1/departments/",
+            "/api/v1/admin/departments/",
             json={"name": "Anatomy", "code": "ANAT", "nmc_department_type": "preclinical"},
         )
         assert r.status_code == 403
@@ -147,7 +147,7 @@ class TestDepartmentRoleAccess:
     async def test_hod_cannot_create(self, client):
         _setup_auth(_make_user(role=UserRole.HOD))
         r = await client.post(
-            "/api/v1/departments/",
+            "/api/v1/admin/departments/",
             json={"name": "Anatomy", "code": "ANAT", "nmc_department_type": "preclinical"},
         )
         assert r.status_code == 403
@@ -155,7 +155,7 @@ class TestDepartmentRoleAccess:
     async def test_compliance_officer_cannot_create(self, client):
         _setup_auth(_make_user(role=UserRole.COMPLIANCE_OFFICER))
         r = await client.post(
-            "/api/v1/departments/",
+            "/api/v1/admin/departments/",
             json={"name": "Anatomy", "code": "ANAT", "nmc_department_type": "preclinical"},
         )
         assert r.status_code == 403
@@ -163,7 +163,7 @@ class TestDepartmentRoleAccess:
     async def test_admin_can_create(self, client):
         _setup_auth(_make_user(role=UserRole.ADMIN))
         r = await client.post(
-            "/api/v1/departments/",
+            "/api/v1/admin/departments/",
             json={"name": "Anatomy", "code": "ANAT", "nmc_department_type": "preclinical"},
         )
         assert r.status_code != 403, "Admin should pass role check"
@@ -171,7 +171,7 @@ class TestDepartmentRoleAccess:
     async def test_dean_can_create(self, client):
         _setup_auth(_make_user(role=UserRole.DEAN))
         r = await client.post(
-            "/api/v1/departments/",
+            "/api/v1/admin/departments/",
             json={"name": "Anatomy", "code": "ANAT", "nmc_department_type": "preclinical"},
         )
         assert r.status_code != 403, "Dean should pass role check"
@@ -179,7 +179,7 @@ class TestDepartmentRoleAccess:
     async def test_management_can_create(self, client):
         _setup_auth(_make_user(role=UserRole.MANAGEMENT))
         r = await client.post(
-            "/api/v1/departments/",
+            "/api/v1/admin/departments/",
             json={"name": "Anatomy", "code": "ANAT", "nmc_department_type": "preclinical"},
         )
         assert r.status_code != 403, "Management should pass role check"
@@ -189,28 +189,28 @@ class TestDepartmentRoleAccess:
     async def test_student_cannot_update(self, client):
         _setup_auth(_make_user(role=UserRole.STUDENT))
         r = await client.patch(
-            f"/api/v1/departments/{uuid.uuid4()}", json={"name": "X"},
+            f"/api/v1/admin/departments/{uuid.uuid4()}", json={"name": "X"},
         )
         assert r.status_code == 403
 
     async def test_faculty_cannot_update(self, client):
         _setup_auth(_make_user(role=UserRole.FACULTY))
         r = await client.patch(
-            f"/api/v1/departments/{uuid.uuid4()}", json={"name": "X"},
+            f"/api/v1/admin/departments/{uuid.uuid4()}", json={"name": "X"},
         )
         assert r.status_code == 403
 
     async def test_admin_can_update(self, client):
         _setup_auth(_make_user(role=UserRole.ADMIN))
         r = await client.patch(
-            f"/api/v1/departments/{uuid.uuid4()}", json={"name": "X"},
+            f"/api/v1/admin/departments/{uuid.uuid4()}", json={"name": "X"},
         )
         assert r.status_code != 403, "Admin should pass role check"
 
     async def test_dean_can_update(self, client):
         _setup_auth(_make_user(role=UserRole.DEAN))
         r = await client.patch(
-            f"/api/v1/departments/{uuid.uuid4()}", json={"name": "X"},
+            f"/api/v1/admin/departments/{uuid.uuid4()}", json={"name": "X"},
         )
         assert r.status_code != 403, "Dean should pass role check"
 
@@ -218,34 +218,34 @@ class TestDepartmentRoleAccess:
 
     async def test_student_cannot_delete(self, client):
         _setup_auth(_make_user(role=UserRole.STUDENT))
-        r = await client.delete(f"/api/v1/departments/{uuid.uuid4()}")
+        r = await client.delete(f"/api/v1/admin/departments/{uuid.uuid4()}")
         assert r.status_code == 403
 
     async def test_admin_can_delete(self, client):
         _setup_auth(_make_user(role=UserRole.ADMIN))
-        r = await client.delete(f"/api/v1/departments/{uuid.uuid4()}")
+        r = await client.delete(f"/api/v1/admin/departments/{uuid.uuid4()}")
         assert r.status_code != 403, "Admin should pass role check"
 
     # --- Read: all authenticated roles ---
 
     async def test_student_can_list(self, client):
         _setup_auth(_make_user(role=UserRole.STUDENT))
-        r = await client.get("/api/v1/departments/")
+        r = await client.get("/api/v1/admin/departments/")
         assert r.status_code != 403, "Students should have read access"
 
     async def test_student_can_get_by_id(self, client):
         _setup_auth(_make_user(role=UserRole.STUDENT))
-        r = await client.get(f"/api/v1/departments/{uuid.uuid4()}")
+        r = await client.get(f"/api/v1/admin/departments/{uuid.uuid4()}")
         assert r.status_code != 403, "Students should have read access"
 
     async def test_faculty_can_list(self, client):
         _setup_auth(_make_user(role=UserRole.FACULTY))
-        r = await client.get("/api/v1/departments/")
+        r = await client.get("/api/v1/admin/departments/")
         assert r.status_code != 403, "Faculty should have read access"
 
     async def test_compliance_can_list(self, client):
         _setup_auth(_make_user(role=UserRole.COMPLIANCE_OFFICER))
-        r = await client.get("/api/v1/departments/")
+        r = await client.get("/api/v1/admin/departments/")
         assert r.status_code != 403, "Compliance officer should have read access"
 
 
@@ -261,7 +261,7 @@ class TestDepartmentValidation:
         """POST with missing code and nmc_department_type returns 422."""
         _setup_auth(_make_user(role=UserRole.ADMIN))
         r = await client.post(
-            "/api/v1/departments/", json={"name": "Anatomy"},
+            "/api/v1/admin/departments/", json={"name": "Anatomy"},
         )
         assert r.status_code == 422
 
@@ -269,7 +269,7 @@ class TestDepartmentValidation:
         """POST with invalid nmc_department_type returns 422."""
         _setup_auth(_make_user(role=UserRole.ADMIN))
         r = await client.post(
-            "/api/v1/departments/",
+            "/api/v1/admin/departments/",
             json={"name": "Anatomy", "code": "ANAT", "nmc_department_type": "invalid_type"},
         )
         assert r.status_code == 422
@@ -278,7 +278,7 @@ class TestDepartmentValidation:
         """POST with empty name returns 422."""
         _setup_auth(_make_user(role=UserRole.ADMIN))
         r = await client.post(
-            "/api/v1/departments/",
+            "/api/v1/admin/departments/",
             json={"name": "", "code": "ANAT", "nmc_department_type": "preclinical"},
         )
         assert r.status_code == 422
@@ -286,19 +286,19 @@ class TestDepartmentValidation:
     async def test_list_page_zero(self, client):
         """GET with page=0 returns 422."""
         _setup_auth(_make_user(role=UserRole.ADMIN))
-        r = await client.get("/api/v1/departments/?page=0")
+        r = await client.get("/api/v1/admin/departments/?page=0")
         assert r.status_code == 422
 
     async def test_list_page_size_over_limit(self, client):
         """GET with page_size=200 (over limit of 100) returns 422."""
         _setup_auth(_make_user(role=UserRole.ADMIN))
-        r = await client.get("/api/v1/departments/?page_size=200")
+        r = await client.get("/api/v1/admin/departments/?page_size=200")
         assert r.status_code == 422
 
     async def test_list_invalid_nmc_type_filter(self, client):
         """GET with invalid nmc_type filter returns 422."""
         _setup_auth(_make_user(role=UserRole.ADMIN))
-        r = await client.get("/api/v1/departments/?nmc_type=invalid")
+        r = await client.get("/api/v1/admin/departments/?nmc_type=invalid")
         assert r.status_code == 422
 
     async def test_create_all_valid_nmc_types(self, client):
@@ -306,7 +306,7 @@ class TestDepartmentValidation:
         _setup_auth(_make_user(role=UserRole.ADMIN))
         for nmc_type in ["preclinical", "paraclinical", "clinical"]:
             r = await client.post(
-                "/api/v1/departments/",
+                "/api/v1/admin/departments/",
                 json={"name": f"Dept {nmc_type}", "code": nmc_type[:4].upper(), "nmc_department_type": nmc_type},
             )
             assert r.status_code != 422, f"NMC type '{nmc_type}' should be valid"

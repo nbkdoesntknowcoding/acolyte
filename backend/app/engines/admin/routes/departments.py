@@ -17,6 +17,7 @@ from app.engines.admin.schemas import (
     DepartmentListResponse,
     DepartmentResponse,
     DepartmentUpdate,
+    NMCDepartmentType,
 )
 from app.middleware.clerk_auth import CurrentUser, UserRole
 from app.shared.exceptions import DuplicateException, NotFoundException
@@ -29,7 +30,7 @@ async def list_departments(
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
     search: str | None = Query(None, max_length=100),
-    nmc_type: str | None = Query(None),
+    nmc_type: NMCDepartmentType | None = Query(None),
     active_only: bool = Query(True),
     user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_tenant_db),
@@ -41,7 +42,7 @@ async def list_departments(
         query = query.where(Department.is_active.is_(True))
 
     if nmc_type:
-        query = query.where(Department.nmc_department_type == nmc_type)
+        query = query.where(Department.nmc_department_type == nmc_type.value)
 
     if search:
         pattern = f"%{search}%"
