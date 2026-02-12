@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { clsx } from "clsx";
-import { Receipt, Settings } from "lucide-react";
+import { GraduationCap, Receipt, Settings, Wallet } from "lucide-react";
 
 const FINANCE_TABS = [
   {
@@ -15,6 +15,16 @@ const FINANCE_TABS = [
     label: "Fee Structure",
     href: "/dashboard/admin/finance/fee-structure",
     icon: Settings,
+  },
+  {
+    label: "Scholarships",
+    href: "/dashboard/admin/finance/scholarships",
+    icon: GraduationCap,
+  },
+  {
+    label: "Payroll",
+    href: "/dashboard/admin/finance/payroll",
+    icon: Wallet,
   },
 ];
 

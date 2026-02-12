@@ -33,6 +33,14 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { StatCard } from "@/components/admin/stat-card";
 import { formatINRCompact } from "@/lib/format";
 import type {
@@ -372,157 +380,175 @@ export default function AdminDashboard() {
       {/* Tables Row */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Pending Approvals */}
-        <Card>
+        <Card className="overflow-hidden">
           <div className="flex items-center justify-between border-b border-dark-border p-4">
             <h3 className="flex items-center gap-2 text-sm font-bold text-white">
               <AlertTriangle className="h-4 w-4 text-orange-500" />
               Pending Approvals
             </h3>
-            <button className="text-xs text-emerald-500 hover:underline">
+            <Button variant="link" size="sm" className="h-auto p-0 text-xs">
               View All (26)
-            </button>
+            </Button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-gray-400">
-              <thead className="bg-[#0f0f0f] text-[10px] uppercase text-gray-500">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Request Type</th>
-                  <th className="px-4 py-3 font-medium">Requester</th>
-                  <th className="px-4 py-3 font-medium">Priority</th>
-                  <th className="px-4 py-3 font-medium text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-dark-border">
-                {MOCK_APPROVALS.map((approval) => (
-                  <tr
-                    key={approval.id}
-                    className="group cursor-pointer transition-colors hover:bg-white/5"
-                  >
-                    <td className="px-4 py-3 font-medium text-white">
-                      {approval.type}
-                      <div className="text-[10px] font-normal text-gray-500">
-                        #{approval.requestId}
+          <Table>
+            <TableHeader>
+              <TableRow className="border-dark-border bg-dark-elevated/50 hover:bg-dark-elevated/50">
+                <TableHead className="px-4 py-3 text-[10px] uppercase font-medium text-gray-500">
+                  Request Type
+                </TableHead>
+                <TableHead className="px-4 py-3 text-[10px] uppercase font-medium text-gray-500">
+                  Requester
+                </TableHead>
+                <TableHead className="px-4 py-3 text-[10px] uppercase font-medium text-gray-500">
+                  Priority
+                </TableHead>
+                <TableHead className="px-4 py-3 text-[10px] uppercase font-medium text-gray-500 text-right">
+                  Action
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {MOCK_APPROVALS.map((approval) => (
+                <TableRow
+                  key={approval.id}
+                  className="group cursor-pointer border-dark-border hover:bg-white/5"
+                >
+                  <TableCell className="px-4 py-3 text-xs font-medium text-white">
+                    {approval.type}
+                    <div className="text-[10px] font-normal text-gray-500">
+                      #{approval.requestId}
+                    </div>
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-xs text-gray-400">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-700 text-[9px] text-white">
+                        {approval.requesterInitials}
                       </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-700 text-[9px] text-white">
-                          {approval.requesterInitials}
-                        </div>
-                        <span>{approval.requesterName}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge
-                        variant={
-                          approval.priority === "high"
-                            ? "destructive"
-                            : approval.priority === "medium"
-                              ? "warning"
-                              : "info"
-                        }
+                      <span>{approval.requesterName}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="px-4 py-3">
+                    <Badge
+                      variant={
+                        approval.priority === "high"
+                          ? "destructive"
+                          : approval.priority === "medium"
+                            ? "warning"
+                            : "info"
+                      }
+                    >
+                      {approval.priority}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-right">
+                    <div className="flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500 hover:text-white"
+                        aria-label="Approve request"
                       >
-                        {approval.priority}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                        <button
-                          className="flex h-6 w-6 items-center justify-center rounded bg-emerald-500/20 text-emerald-500 transition-colors hover:bg-emerald-500 hover:text-white"
-                          aria-label="Approve request"
-                        >
-                          <Check className="h-3 w-3" />
-                        </button>
-                        <button
-                          className="flex h-6 w-6 items-center justify-center rounded bg-red-500/20 text-red-500 transition-colors hover:bg-red-500 hover:text-white"
-                          aria-label="Reject request"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                        <Check className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white"
+                        aria-label="Reject request"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </Card>
 
         {/* Recent Admissions */}
-        <Card>
+        <Card className="overflow-hidden">
           <div className="flex items-center justify-between border-b border-dark-border p-4">
             <h3 className="flex items-center gap-2 text-sm font-bold text-white">
               <GraduationCap className="h-4 w-4 text-blue-500" />
               Recent Admissions
             </h3>
-            <button className="text-xs text-emerald-500 hover:underline">
+            <Button variant="link" size="sm" className="h-auto p-0 text-xs">
               Full List
-            </button>
+            </Button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-gray-400">
-              <thead className="bg-[#0f0f0f] text-[10px] uppercase text-gray-500">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Student</th>
-                  <th className="px-4 py-3 font-medium">Department</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium text-right">Fee</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-dark-border">
-                {MOCK_ADMISSIONS.map((admission) => (
-                  <tr
-                    key={admission.id}
-                    className="cursor-pointer transition-colors hover:bg-white/5"
-                  >
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-6 w-6 items-center justify-center rounded bg-gray-700 text-[10px] text-white">
-                          {admission.studentInitials}
+          <Table>
+            <TableHeader>
+              <TableRow className="border-dark-border bg-dark-elevated/50 hover:bg-dark-elevated/50">
+                <TableHead className="px-4 py-3 text-[10px] uppercase font-medium text-gray-500">
+                  Student
+                </TableHead>
+                <TableHead className="px-4 py-3 text-[10px] uppercase font-medium text-gray-500">
+                  Department
+                </TableHead>
+                <TableHead className="px-4 py-3 text-[10px] uppercase font-medium text-gray-500">
+                  Status
+                </TableHead>
+                <TableHead className="px-4 py-3 text-[10px] uppercase font-medium text-gray-500 text-right">
+                  Fee
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {MOCK_ADMISSIONS.map((admission) => (
+                <TableRow
+                  key={admission.id}
+                  className="cursor-pointer border-dark-border hover:bg-white/5"
+                >
+                  <TableCell className="px-4 py-2.5 text-xs text-gray-400">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-6 w-6 items-center justify-center rounded bg-gray-700 text-[10px] text-white">
+                        {admission.studentInitials}
+                      </div>
+                      <div>
+                        <div className="font-medium text-white">
+                          {admission.studentName}
                         </div>
-                        <div>
-                          <div className="font-medium text-white">
-                            {admission.studentName}
-                          </div>
-                          <div className="text-[9px]">
-                            {admission.enrollmentNo}
-                          </div>
+                        <div className="text-[9px]">
+                          {admission.enrollmentNo}
                         </div>
                       </div>
-                    </td>
-                    <td className="px-4 py-2.5">{admission.department}</td>
-                    <td className="px-4 py-2.5">
-                      <span className="inline-flex items-center gap-1">
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            admission.status === "active"
-                              ? "bg-emerald-500"
-                              : admission.status === "pending"
-                                ? "bg-yellow-500"
-                                : "bg-blue-500"
-                          }`}
-                        />
-                        <span className="capitalize">{admission.status}</span>
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-right">
+                    </div>
+                  </TableCell>
+                  <TableCell className="px-4 py-2.5 text-xs text-gray-400">
+                    {admission.department}
+                  </TableCell>
+                  <TableCell className="px-4 py-2.5 text-xs text-gray-400">
+                    <span className="inline-flex items-center gap-1">
                       <span
-                        className={`font-medium capitalize ${
-                          admission.feeStatus === "paid"
-                            ? "text-gray-300"
-                            : admission.feeStatus === "due"
-                              ? "text-orange-400"
-                              : "text-yellow-400"
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          admission.status === "active"
+                            ? "bg-emerald-500"
+                            : admission.status === "pending"
+                              ? "bg-yellow-500"
+                              : "bg-blue-500"
                         }`}
-                      >
-                        {admission.feeStatus}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      />
+                      <span className="capitalize">{admission.status}</span>
+                    </span>
+                  </TableCell>
+                  <TableCell className="px-4 py-2.5 text-xs text-right">
+                    <Badge
+                      variant={
+                        admission.feeStatus === "paid"
+                          ? "default"
+                          : admission.feeStatus === "due"
+                            ? "warning"
+                            : "info"
+                      }
+                    >
+                      {admission.feeStatus}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </Card>
       </div>
 
