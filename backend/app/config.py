@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     APP_DEBUG: bool = True
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8081"
+    CORS_ORIGIN_REGEX: str = ""
 
     # Database (Neon PostgreSQL)
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/acolyte"
