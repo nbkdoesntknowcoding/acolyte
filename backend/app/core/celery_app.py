@@ -85,6 +85,22 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(hour=3, minute=0),  # 3:00 AM IST daily
         "options": {"queue": "student_queue"},
     },
+    "platform-health-metrics": {
+        "task": "platform.collect_health_metrics",
+        "schedule": 300.0,  # every 5 minutes
+    },
+    "platform-daily-snapshots": {
+        "task": "platform.daily_usage_snapshots",
+        "schedule": crontab(hour=0, minute=0),  # midnight IST
+    },
+    "platform-license-renewals": {
+        "task": "platform.check_license_renewals",
+        "schedule": crontab(hour=9, minute=0),  # 9 AM IST
+    },
+    "platform-cleanup-metrics": {
+        "task": "platform.cleanup_old_metrics",
+        "schedule": crontab(hour=3, minute=0, day_of_week=0),  # Sunday 3 AM
+    },
 }
 
 # ---------------------------------------------------------------------------
@@ -129,7 +145,9 @@ celery_app.conf.update(
         "app.engines.compliance.tasks",
         "app.engines.admin.tasks",
         "app.engines.integration.tasks",
+        "app.engines.ai.analytics.tasks",
         "app.engines.ai.tasks",
+        "app.platform.tasks",
     ],
 )
 

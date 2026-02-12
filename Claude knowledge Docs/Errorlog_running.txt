@@ -1,0 +1,8 @@
+Run cd backend && flyctl deploy --config fly.toml --remote-only
+WARN WARNING the config file at 'fly.toml' is not valid: json: cannot unmarshal object into Go struct field HTTPService.http_service.checks of type []*appconfig.ServiceHTTPCheck
+==> Verifying app config
+Validating fly.toml
+
+   ✘json: cannot unmarshal object into Go struct field HTTPService.http_service.checks of type []*appconfig.ServiceHTTPCheck
+Error: App configuration is not valid
+Error: Process completed with exit code 1.

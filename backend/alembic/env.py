@@ -21,6 +21,7 @@ from app.engines.faculty.models import *  # noqa: F401, F403
 from app.engines.compliance.models import *  # noqa: F401, F403
 from app.engines.student.models import *  # noqa: F401, F403
 from app.engines.integration.models import *  # noqa: F401, F403
+from app.engines.ai.models import *  # noqa: F401, F403
 
 config = context.config
 

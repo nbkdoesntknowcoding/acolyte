@@ -21,6 +21,7 @@ from app.engines.integration.routes import router as integration_router
 from app.engines.ai.routes import router as ai_router
 from app.routes.files import router as files_router
 from app.routes.webhooks import router as webhooks_router
+from app.platform.router import router as platform_router
 
 logger = logging.getLogger(__name__)
 
@@ -129,6 +130,7 @@ settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
+    allow_origin_regex=settings.CORS_ORIGIN_REGEX or None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -144,6 +146,7 @@ app.include_router(integration_router, prefix="/api/v1/integration", tags=["Inte
 app.include_router(ai_router, prefix="/api/v1/ai", tags=["Central AI Engine"])
 app.include_router(files_router)     # Mounted at /api/v1/files/*
 app.include_router(webhooks_router)  # Mounted at /api/v1/webhooks/clerk/*
+app.include_router(platform_router, prefix="/api/v1/platform", tags=["Platform Admin"])
 
 
 # ---------------------------------------------------------------------------

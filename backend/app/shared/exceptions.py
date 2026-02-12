@@ -1,5 +1,16 @@
 """Custom exceptions for the Acolyte platform.
 
+Hierarchy:
+    AcolyteException (base — does NOT inherit HTTPException)
+    ├── NotFoundException (404)
+    ├── DuplicateException (409)
+    ├── ValidationException (422)
+    ├── ForbiddenException (403)
+    ├── UnauthorizedException (401)
+    ├── TenantMismatchException (403)
+    ├── RateLimitException (429)
+    └── ExternalServiceException (502)
+
 Design:
 - AcolyteException does NOT inherit from HTTPException. This keeps
   handler dispatch clean: our handler catches AcolyteException, a
@@ -16,7 +27,7 @@ Design:
 
 
 class AcolyteException(Exception):
-    """Base exception for all Acolyte business errors.
+    """Base exception for all Acolyte business logic errors.
 
     Subclasses set status_code and error_code as class-level defaults.
     Callers provide message and optional details.
