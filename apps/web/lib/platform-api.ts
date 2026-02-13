@@ -211,18 +211,14 @@ export interface AuditLogEntry {
 // ---------------------------------------------------------------------------
 
 function createFetcher(
-  getToken: (opts?: { template?: string }) => Promise<string | null>
+  getToken: () => Promise<string | null>
 ) {
   return async function <T>(
     path: string,
     options?: RequestInit
   ): Promise<T> {
-    // Use the acolyte-session JWT template which includes public_metadata.
-    // Falls back to default session token if template doesn't exist.
-    let token = await getToken({ template: 'acolyte-session' });
-    if (!token) {
-      token = await getToken();
-    }
+    // Default session token includes V2 org claims (o.id, o.rol, o.slg, o.per)
+    const token = await getToken();
     const res = await fetch(`${API_BASE}/api/v1/platform${path}`, {
       headers: {
         Authorization: `Bearer ${token}`,

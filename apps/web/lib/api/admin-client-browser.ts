@@ -19,16 +19,13 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
  *   const data = await fetcher<StudentResponse[]>('/students/');
  */
 export function createAdminFetcher(
-  getToken: (opts?: { template?: string }) => Promise<string | null>
+  getToken: () => Promise<string | null>
 ) {
   return async function adminFetch<T>(
     path: string,
     options?: RequestInit
   ): Promise<T> {
-    let token = await getToken({ template: 'acolyte-session' });
-    if (!token) {
-      token = await getToken();
-    }
+    const token = await getToken();
     if (!token) {
       throw new Error('Not authenticated');
     }

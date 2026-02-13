@@ -13,10 +13,7 @@ export async function adminApi<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const { getToken } = await auth();
-  let token = await getToken({ template: 'acolyte-session' });
-  if (!token) {
-    token = await getToken();
-  }
+  const token = await getToken();
   if (!token) {
     throw new Error('Not authenticated');
   }
