@@ -4,17 +4,14 @@ Validates RS256 JWTs using Clerk's JWKS endpoint with timed cache.
 Extracts user_id, org_id (college_id/tenant), role, and session claims.
 Sets PostgreSQL RLS context variable for tenant isolation.
 
-Clerk JWT claims reference (v2 session tokens):
+Clerk JWT claims reference:
+  V2 (April 2025+): org data nested under "o" claim: o.id, o.rol, o.slg, o.per
+  V1 (deprecated): org_id, org_role, org_slug, org_permissions at top level
 - sub: Clerk user ID (user_xxx)
-- org_id: active organization ID (org_xxx) — maps to our college_id
-- org_role: role within org (org:admin, org:member, or custom)
-- org_slug: org slug for display
+- sid: session ID (sess_xxx)
 - azp: authorized party (publishable key / origin)
 - iss: issuer URL (https://<instance>.clerk.accounts.dev)
 - exp / nbf / iat: standard time claims
-- email: user email (if present in session template)
-- first_name / last_name: from Clerk user profile (if present)
-- metadata: custom public/private metadata (if configured in session template)
 """
 
 import asyncio
@@ -261,25 +258,57 @@ async def verify_clerk_jwt(token: str, settings: Settings | None = None) -> dict
 def extract_current_user(payload: dict) -> CurrentUser:
     """Extract a CurrentUser from a verified JWT payload.
 
-    Clerk v2 session token structure:
+    Supports BOTH Clerk session token formats:
+
+    V2 (current, April 2025+):
+    {
+      "sub": "user_2abc...",
+      "sid": "sess_2...",
+      "o": {
+        "id": "org_2xyz...",
+        "rol": "org:faculty",
+        "slg": "demo-college",
+        "per": "org:students:read,org:assessments:manage",
+        "fpm": "1"
+      },
+      ...
+    }
+
+    V1 (deprecated):
     {
       "sub": "user_2abc...",
       "org_id": "org_2xyz...",
       "org_role": "org:faculty",
       "org_slug": "demo-college",
-      "email": "dr.smith@college.edu",
-      "first_name": "Dr.",
-      "last_name": "Smith",
-      "sid": "sess_2...",
-      "org_permissions": ["org:students:read", "org:assessments:manage"],
+      "org_permissions": ["org:students:read"],
       ...
     }
     """
     user_id = payload.get("sub", "")
-    org_id = payload.get("org_id")
-    org_role = payload.get("org_role")
-    org_slug = payload.get("org_slug")
     session_id = payload.get("sid")
+
+    # --- Extract org claims: V2 ("o" object) with V1 fallback ---
+    o_claim = payload.get("o")
+    if isinstance(o_claim, dict) and o_claim.get("id"):
+        # V2 session token
+        org_id = o_claim["id"]
+        org_role_raw = o_claim.get("rol", "")
+        org_slug = o_claim.get("slg")
+        # V2 permissions can be comma-separated string or absent
+        per_raw = o_claim.get("per", "")
+        permissions = [p for p in per_raw.split(",") if p] if isinstance(per_raw, str) else per_raw or []
+        logger.debug("Parsed V2 session token: org_id=%s, role=%s", org_id, org_role_raw)
+    else:
+        # V1 session token (or custom JWT template)
+        org_id = payload.get("org_id")
+        org_role_raw = payload.get("org_role", "")
+        org_slug = payload.get("org_slug")
+        permissions = payload.get("org_permissions", [])
+
+    # Normalize role: V2 may use "admin" instead of "org:admin"
+    org_role = org_role_raw
+    if org_role and not org_role.startswith("org:"):
+        org_role = f"org:{org_role}"
 
     # Email: Clerk may put it at top level or in metadata
     email = payload.get("email")
@@ -288,9 +317,6 @@ def extract_current_user(payload: dict) -> CurrentUser:
     first_name = payload.get("first_name", "")
     last_name = payload.get("last_name", "")
     full_name = f"{first_name} {last_name}".strip() or None
-
-    # Org permissions
-    permissions = payload.get("org_permissions", [])
 
     # Map role
     # Also check metadata for custom role override (set via Clerk dashboard)
