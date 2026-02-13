@@ -196,3 +196,21 @@ async def get_me(user: CurrentUser = Depends(get_current_user)):
         "org_slug": user.org_slug,
         "permissions": user.permissions,
     }
+
+
+# TEMPORARY DEBUG — remove after fixing auth
+from fastapi import Request as _Req
+from app.middleware.clerk_auth import verify_clerk_jwt as _verify
+
+@app.get("/api/v1/debug/jwt", tags=["Debug"])
+async def debug_jwt(request: _Req):
+    """Dump raw JWT claims for debugging. REMOVE IN PRODUCTION."""
+    auth = request.headers.get("authorization", "")
+    if not auth.startswith("Bearer "):
+        return {"error": "No Bearer token"}
+    token = auth[7:]
+    try:
+        payload = await _verify(token)
+        return {"keys": list(payload.keys()), "claims": {k: v for k, v in payload.items() if k not in ('iat', 'exp', 'nbf')}}
+    except Exception as e:
+        return {"error": str(e)}
