@@ -3,32 +3,44 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { SeatQuota } from "@/types/admin";
+import type { SeatMatrixItem } from "@/types/admin-api";
 
-const PROGRESS_COLORS: Record<SeatQuota["color"], string> = {
+/** Derive color from fill percentage */
+function getColor(pct: number): "emerald" | "yellow" | "red" {
+  if (pct >= 80) return "emerald";
+  if (pct >= 50) return "yellow";
+  return "red";
+}
+
+const PROGRESS_COLORS = {
   emerald: "bg-emerald-500",
   yellow: "bg-yellow-500",
   red: "bg-red-500",
-  blue: "bg-blue-500",
-  orange: "bg-orange-500",
-};
+} as const;
 
-const TEXT_COLORS: Record<SeatQuota["color"], string> = {
+const TEXT_COLORS = {
   emerald: "text-emerald-500",
   yellow: "text-yellow-500",
   red: "text-red-500",
-  blue: "text-blue-500",
-  orange: "text-orange-500",
+} as const;
+
+/** Friendly label for quota codes */
+const QUOTA_LABELS: Record<string, string> = {
+  AIQ: "AIQ (15%)",
+  State: "State Quota",
+  Management: "Management",
+  NRI: "NRI",
+  Institutional: "Institutional",
 };
 
 interface SeatMatrixProps {
-  quotas: SeatQuota[];
+  quotas: SeatMatrixItem[];
 }
 
 export function SeatMatrix({ quotas }: SeatMatrixProps) {
-  const totalSanctioned = quotas.reduce((s, q) => s + q.sanctioned, 0);
-  const totalFilled = quotas.reduce((s, q) => s + q.filled, 0);
-  const totalVacant = quotas.reduce((s, q) => s + q.vacant, 0);
+  const totalSanctioned = quotas.reduce((s, q) => s + q.total_seats, 0);
+  const totalFilled = quotas.reduce((s, q) => s + q.filled_seats, 0);
+  const totalVacant = quotas.reduce((s, q) => s + q.vacant_seats, 0);
 
   return (
     <Card className="flex flex-col overflow-hidden">
@@ -65,54 +77,61 @@ export function SeatMatrix({ quotas }: SeatMatrixProps) {
             </tr>
           </thead>
           <tbody className="divide-y divide-dark-border">
-            {quotas.map((q) => (
-              <tr
-                key={q.name}
-                className="transition-colors hover:bg-dark-elevated/30"
-              >
-                <td className="px-5 py-3 font-medium text-white">{q.name}</td>
-                <td className="px-4 py-3 text-right text-gray-500">
-                  {q.sanctioned}
-                </td>
-                <td
-                  className={cn(
-                    "px-4 py-3 text-right font-semibold",
-                    TEXT_COLORS[q.color],
-                  )}
+            {quotas.map((q) => {
+              const color = getColor(q.fill_percentage);
+              return (
+                <tr
+                  key={q.quota}
+                  className="transition-colors hover:bg-dark-elevated/30"
                 >
-                  {q.filled}
-                </td>
-                <td
-                  className={cn(
-                    "px-4 py-3 text-right",
-                    q.vacant > 10 ? "font-semibold text-white" : "text-gray-400",
-                  )}
-                >
-                  {q.vacant}
-                </td>
-                <td className="px-5 py-3">
-                  <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-full rounded-full bg-gray-700">
-                      <div
+                  <td className="px-5 py-3 font-medium text-white">
+                    {QUOTA_LABELS[q.quota] ?? q.quota}
+                  </td>
+                  <td className="px-4 py-3 text-right text-gray-500">
+                    {q.total_seats}
+                  </td>
+                  <td
+                    className={cn(
+                      "px-4 py-3 text-right font-semibold",
+                      TEXT_COLORS[color],
+                    )}
+                  >
+                    {q.filled_seats}
+                  </td>
+                  <td
+                    className={cn(
+                      "px-4 py-3 text-right",
+                      q.vacant_seats > 10
+                        ? "font-semibold text-white"
+                        : "text-gray-400",
+                    )}
+                  >
+                    {q.vacant_seats}
+                  </td>
+                  <td className="px-5 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-1.5 w-full rounded-full bg-gray-700">
+                        <div
+                          className={cn(
+                            "h-1.5 rounded-full",
+                            PROGRESS_COLORS[color],
+                          )}
+                          style={{ width: `${q.fill_percentage}%` }}
+                        />
+                      </div>
+                      <span
                         className={cn(
-                          "h-1.5 rounded-full",
-                          PROGRESS_COLORS[q.color],
+                          "text-xs font-medium",
+                          TEXT_COLORS[color],
                         )}
-                        style={{ width: `${q.percentage}%` }}
-                      />
+                      >
+                        {q.fill_percentage}%
+                      </span>
                     </div>
-                    <span
-                      className={cn(
-                        "text-xs font-medium",
-                        TEXT_COLORS[q.color],
-                      )}
-                    >
-                      {q.percentage}%
-                    </span>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
           <tfoot className="border-t border-dark-border bg-dark-elevated/50">
             <tr>

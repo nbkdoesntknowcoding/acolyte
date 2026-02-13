@@ -1,236 +1,140 @@
 "use client";
 
 import { useState } from "react";
+import { useParams } from "next/navigation";
+import Link from "next/link";
 import {
   CreditCard,
   IdCard,
   Home,
   ClipboardList,
   Users,
-  Phone,
   Calendar,
   Receipt,
   Download,
   AlertTriangle,
   CheckCircle,
   Send,
-  PenLine,
   Printer,
   Verified,
+  ArrowLeft,
+  RefreshCw,
+  Save,
+  X,
+  Folder,
+  GraduationCap,
+  BookOpen,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatINRCurrency } from "@/lib/format";
+import { paisaToRupees } from "@/lib/utils/currency";
 import { StudentProfileHeader } from "@/components/admin/student-profile-header";
 import { StudentProfileTabs } from "@/components/admin/student-profile-tabs";
-import { AttendanceCalendar } from "@/components/admin/attendance-calendar";
-import type {
-  ProfileTab,
-  StudentProfile,
-  PersonalInfo,
-  ContactInfo,
-  AdmissionDetail,
-  GuardianInfo,
-  AttendanceSummary,
-  AttendanceMonth,
-  FeePaymentRecord,
-  OutstandingBalance,
-  AnnualFeeSummary,
-} from "@/types/admin";
+import {
+  useStudent,
+  useUpdateStudent,
+  useStudentFeeSummary,
+} from "@/lib/hooks/admin/use-students";
+import type { ProfileTab } from "@/types/admin";
+import type { StudentResponse, StudentUpdate } from "@/types/admin-api";
 
 // ---------------------------------------------------------------------------
-// TODO: Replace with API call — GET /api/v1/admin/students/{id}
-// ---------------------------------------------------------------------------
-
-const STUDENT: StudentProfile = {
-  id: "42",
-  name: "Ananya Singh",
-  enrollmentNo: "MBBS-2023-042",
-  universityRegNo: "U-8829145",
-  enrolledDate: "Aug 2023",
-  status: "active",
-  phase: "Phase I (Pre-Clinical)",
-  batch: "Batch of 2023",
-  section: "Section A",
-  mentorName: "Dr. Rajesh Kumar",
-  email: "ananya.singh@example.com",
-  phone: "+91 98765 43210",
-  bloodGroup: "O+",
-};
-
-const PERSONAL_INFO: PersonalInfo = {
-  fullName: "Ananya Singh",
-  dob: "15 May 2004",
-  age: 19,
-  gender: "Female",
-  bloodGroup: "O Positive (O+)",
-  nationality: "Indian",
-  religion: "Hindu",
-  category: "General",
-  aadharMasked: "XXXX-XXXX-4582",
-};
-
-const CONTACT: ContactInfo = {
-  email: "ananya.singh@example.com",
-  emailVerified: true,
-  phone: "+91 98765 43210",
-  phoneVerified: true,
-  permanentAddress:
-    "House No. 42, Green Avenue, Sector 15\nNear City Park, Chandigarh, Punjab — 160015",
-  correspondenceAddress:
-    "Room 204, Girls Hostel Block B, Acolyte Medical College Campus\nNew Delhi — 110029",
-};
-
-const ADMISSION_DETAILS: AdmissionDetail[] = [
-  { label: "Admission Date", value: "12 Aug 2023" },
-  { label: "Quota", value: "State Quota" },
-  { label: "NEET Rank", value: "1,245" },
-  { label: "NEET Score", value: "685/720" },
-  { label: "Scholarship", value: "Merit (50%)", highlight: true },
-];
-
-const GUARDIANS: GuardianInfo[] = [
-  {
-    relation: "Father",
-    name: "Mr. Vikram Singh",
-    phone: "+91 98765 43211",
-    occupation: "Govt. Employee",
-  },
-  {
-    relation: "Mother",
-    name: "Mrs. Priya Singh",
-    phone: "+91 98765 43212",
-    occupation: "Teacher",
-  },
-];
-
-// --- Attendance & Fees mock data ---
-
-const ATTENDANCE_SUMMARIES: AttendanceSummary[] = [
-  {
-    label: "Theory Attendance",
-    percentage: 78,
-    nmcRequirement: 75,
-    status: "warning",
-  },
-  {
-    label: "Practical/Clinical",
-    percentage: 85,
-    nmcRequirement: 80,
-    status: "safe",
-  },
-];
-
-const ATTENDANCE_MONTHS: AttendanceMonth[] = [
-  {
-    month: "October",
-    year: 2024,
-    days: [
-      { day: 0, status: "blank" },
-      { day: 1, status: "half_day" },
-      { day: 2, status: "present" },
-      { day: 3, status: "present" },
-      { day: 4, status: "absent" },
-      { day: 5, status: "present" },
-      { day: 6, status: "holiday" },
-      { day: 7, status: "present" },
-      { day: 8, status: "present" },
-      { day: 9, status: "late" },
-      { day: 10, status: "present" },
-      { day: 11, status: "present" },
-      { day: 12, status: "half_day" },
-      { day: 13, status: "holiday" },
-      { day: 14, status: "absent" },
-      { day: 15, status: "present" },
-      { day: 16, status: "present" },
-      { day: 17, status: "present" },
-      { day: 18, status: "present" },
-      { day: 19, status: "present" },
-      { day: 20, status: "holiday" },
-      { day: 21, status: "present" },
-      { day: 22, status: "present" },
-      { day: 23, status: "present" },
-      { day: 24, status: "present" },
-      { day: 25, status: "present" },
-      { day: 26, status: "present" },
-      { day: 27, status: "holiday" },
-    ],
-  },
-];
-
-const FEE_PAYMENTS: FeePaymentRecord[] = [
-  {
-    id: "1",
-    date: "15 Oct 2024",
-    receiptNo: "RCPT-24-902",
-    particulars: "Tuition Fee — Sem 5",
-    method: "UPI",
-    amount: 75_000,
-  },
-  {
-    id: "2",
-    date: "10 Aug 2024",
-    receiptNo: "RCPT-24-550",
-    particulars: "Hostel Fee — Annual",
-    method: "NEFT",
-    amount: 45_000,
-  },
-  {
-    id: "3",
-    date: "02 Apr 2024",
-    receiptNo: "RCPT-24-112",
-    particulars: "Exam Fee — Sem 4",
-    method: "Cash",
-    amount: 3_500,
-  },
-];
-
-const OUTSTANDING: OutstandingBalance = {
-  amount: 25_000,
-  description: "Library Fine & Lab Fees",
-  dueDate: "30 Oct 2024",
-  isOverdue: true,
-};
-
-const ANNUAL_SUMMARY: AnnualFeeSummary = {
-  totalFees: 4_50_000,
-  paidAmount: 4_25_000,
-  attendanceDays: 142,
-  totalDays: 180,
-};
-
-const METHOD_STYLES: Record<string, string> = {
-  UPI: "bg-blue-900/30 text-blue-300",
-  NEFT: "bg-purple-900/30 text-purple-300",
-  Cash: "bg-green-900/30 text-green-300",
-  Card: "bg-orange-900/30 text-orange-300",
-  DD: "bg-gray-800 text-gray-300",
-};
-
+// Page Component
 // ---------------------------------------------------------------------------
 
 export default function StudentProfilePage() {
+  const params = useParams<{ id: string }>();
+  const studentId = params.id;
+
+  const { data: student, isLoading, isError, error, refetch } = useStudent(studentId);
   const [activeTab, setActiveTab] = useState<ProfileTab>("personal");
+
+  // 404
+  if (!isLoading && !student && !isError) {
+    return <NotFoundState />;
+  }
+
+  // Error
+  if (isError) {
+    return (
+      <div className="space-y-6">
+        <BackButton />
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/5 p-12 text-center">
+          <AlertTriangle className="h-8 w-8 text-red-400" />
+          <p className="text-sm text-red-400">
+            {error?.message === "API error 404"
+              ? "Student not found"
+              : error?.message || "Failed to load student"}
+          </p>
+          <div className="flex gap-3">
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Retry
+            </Button>
+            <Link href="/dashboard/admin/students/records">
+              <Button variant="outline" size="sm">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to List
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Loading
+  if (isLoading || !student) {
+    return (
+      <div className="space-y-6">
+        <BackButton />
+        <HeaderSkeleton />
+        <div className="h-12 animate-pulse rounded bg-gray-800" />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
+            <CardSkeleton lines={8} />
+            <CardSkeleton lines={4} />
+          </div>
+          <div className="space-y-6">
+            <CardSkeleton lines={5} />
+            <CardSkeleton lines={3} />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <StudentProfileHeader student={STUDENT} />
+      <BackButton />
+      <StudentProfileHeader student={student} />
       <StudentProfileTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {activeTab === "personal" && <PersonalTabContent />}
-      {activeTab === "attendance" && <AttendanceTabContent />}
-
-      {/* Placeholder for other tabs */}
-      {activeTab !== "personal" && activeTab !== "attendance" && (
-        <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-dark-border">
-          <p className="text-sm text-gray-500">
-            {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} tab —
-            coming soon
-          </p>
-        </div>
-      )}
+      {activeTab === "personal" && <PersonalTabContent student={student} />}
+      {activeTab === "academic" && <AcademicTabContent student={student} />}
+      {activeTab === "attendance" && <AttendanceTabPlaceholder />}
+      {activeTab === "fees" && <FeeTabContent studentId={student.id} />}
+      {activeTab === "documents" && <DocumentsTabPlaceholder />}
+      {activeTab === "logbook" && <LogbookTabPlaceholder />}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Back button
+// ---------------------------------------------------------------------------
+
+function BackButton() {
+  return (
+    <Link
+      href="/dashboard/admin/students/records"
+      className="inline-flex items-center gap-1 text-sm text-gray-400 transition-colors hover:text-emerald-500"
+    >
+      <ArrowLeft className="h-4 w-4" />
+      Back to Student Records
+    </Link>
   );
 }
 
@@ -238,7 +142,58 @@ export default function StudentProfilePage() {
 // Personal Tab
 // ---------------------------------------------------------------------------
 
-function PersonalTabContent() {
+function PersonalTabContent({ student }: { student: StudentResponse }) {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState<StudentUpdate>({});
+  const updateStudent = useUpdateStudent();
+
+  const startEdit = () => {
+    setForm({
+      name: student.name,
+      email: student.email,
+      phone: student.phone,
+      date_of_birth: student.date_of_birth,
+      gender: student.gender,
+      blood_group: student.blood_group,
+      nationality: student.nationality,
+      category: student.category,
+      father_name: student.father_name,
+      mother_name: student.mother_name,
+    });
+    setEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setEditing(false);
+    setForm({});
+  };
+
+  const saveEdit = () => {
+    updateStudent.mutate(
+      { id: student.id, data: form },
+      { onSuccess: () => setEditing(false) }
+    );
+  };
+
+  const updateField = (field: keyof StudentUpdate, value: string | null) => {
+    setForm((prev) => ({ ...prev, [field]: value || null }));
+  };
+
+  const dobFormatted = student.date_of_birth
+    ? new Date(student.date_of_birth).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : null;
+
+  const age = student.date_of_birth
+    ? Math.floor(
+        (Date.now() - new Date(student.date_of_birth).getTime()) /
+          (365.25 * 24 * 60 * 60 * 1000)
+      )
+    : null;
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       {/* Left — 2/3 */}
@@ -247,65 +202,94 @@ function PersonalTabContent() {
         <SectionCard
           icon={<IdCard className="h-5 w-5 text-emerald-500" />}
           title="Personal Information"
-          action="Edit Details"
+          action={
+            editing ? (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={cancelEdit}
+                  disabled={updateStudent.isPending}
+                >
+                  <X className="mr-1 h-3.5 w-3.5" />
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={saveEdit}
+                  disabled={updateStudent.isPending}
+                >
+                  <Save className="mr-1 h-3.5 w-3.5" />
+                  {updateStudent.isPending ? "Saving..." : "Save"}
+                </Button>
+              </div>
+            ) : (
+              <button
+                onClick={startEdit}
+                className="text-xs font-medium text-emerald-500 hover:underline"
+              >
+                Edit Details
+              </button>
+            )
+          }
         >
-          <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
-            <InfoField label="Full Name" value={PERSONAL_INFO.fullName} />
-            <InfoField
-              label="Date of Birth"
-              value={`${PERSONAL_INFO.dob} (${PERSONAL_INFO.age} Years)`}
-            />
-            <InfoField label="Gender" value={PERSONAL_INFO.gender} />
-            <InfoField label="Blood Group" value={PERSONAL_INFO.bloodGroup} />
-            <InfoField label="Nationality" value={PERSONAL_INFO.nationality} />
-            <InfoField label="Religion" value={PERSONAL_INFO.religion} />
-            <InfoField label="Category" value={PERSONAL_INFO.category} />
-            <InfoField
-              label="Aadhar Number"
-              value={PERSONAL_INFO.aadharMasked}
-            />
-          </div>
+          {editing ? (
+            <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-2">
+              <EditField label="Full Name" value={form.name ?? ""} onChange={(v) => updateField("name", v)} />
+              <EditField label="Date of Birth" value={form.date_of_birth ?? ""} onChange={(v) => updateField("date_of_birth", v)} type="date" />
+              <EditField label="Gender" value={form.gender ?? ""} onChange={(v) => updateField("gender", v)} />
+              <EditField label="Blood Group" value={form.blood_group ?? ""} onChange={(v) => updateField("blood_group", v)} />
+              <EditField label="Nationality" value={form.nationality ?? ""} onChange={(v) => updateField("nationality", v)} />
+              <EditField label="Category" value={form.category ?? ""} onChange={(v) => updateField("category", v)} />
+              <EditField label="Email" value={form.email ?? ""} onChange={(v) => updateField("email", v)} type="email" />
+              <EditField label="Phone" value={form.phone ?? ""} onChange={(v) => updateField("phone", v)} />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
+              <InfoField label="Full Name" value={student.name} />
+              <InfoField
+                label="Date of Birth"
+                value={dobFormatted ? `${dobFormatted}${age ? ` (${age} Years)` : ""}` : "—"}
+              />
+              <InfoField label="Gender" value={student.gender ?? "—"} />
+              <InfoField label="Blood Group" value={student.blood_group ?? "—"} />
+              <InfoField label="Nationality" value={student.nationality ?? "—"} />
+              <InfoField label="Category" value={student.category ?? "—"} />
+            </div>
+          )}
+          {updateStudent.isError && (
+            <p className="mt-3 text-xs text-red-400">
+              Failed to save: {updateStudent.error.message}
+            </p>
+          )}
         </SectionCard>
 
         {/* Contact & Address */}
         <SectionCard
           icon={<Home className="h-5 w-5 text-emerald-500" />}
           title="Contact & Address"
-          action="Edit Details"
         >
           <div className="space-y-6">
             <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-2">
-              <InfoField label="Email Address" value={CONTACT.email} verified />
+              <InfoField
+                label="Email Address"
+                value={student.email ?? "—"}
+                verified={!!student.email}
+              />
               <InfoField
                 label="Mobile Number"
-                value={CONTACT.phone}
-                verified
+                value={student.phone ? `+91 ${student.phone}` : "—"}
+                verified={!!student.phone}
               />
             </div>
 
+            {/* TODO: Address fields not on StudentResponse — needs profile extension */}
             <div className="border-t border-dark-border pt-4">
-              <InfoField
-                label="Permanent Address"
-                value={CONTACT.permanentAddress}
-                multiline
-              />
+              <p className="text-xs text-gray-500">
+                Address information requires the student profile extension
+                endpoint (coming soon).
+              </p>
             </div>
-
-            {CONTACT.correspondenceAddress && (
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-500">
-                  Correspondence Address
-                </label>
-                <div className="flex items-start gap-2">
-                  <p className="whitespace-pre-line text-sm leading-relaxed text-white">
-                    {CONTACT.correspondenceAddress}
-                  </p>
-                  <span className="rounded bg-gray-700 px-2 py-0.5 text-[10px] text-gray-300">
-                    Current
-                  </span>
-                </div>
-              </div>
-            )}
           </div>
         </SectionCard>
       </div>
@@ -318,26 +302,29 @@ function PersonalTabContent() {
           title="Admission Details"
         >
           <div className="space-y-4">
-            {ADMISSION_DETAILS.map((d) => (
-              <div
-                key={d.label}
-                className={cn(
-                  "flex items-center justify-between py-2",
-                  d !== ADMISSION_DETAILS[ADMISSION_DETAILS.length - 1] &&
-                    "border-b border-dark-border",
-                )}
-              >
-                <span className="text-xs text-gray-500">{d.label}</span>
-                <span
-                  className={cn(
-                    "text-sm font-medium",
-                    d.highlight ? "text-green-400" : "text-white",
-                  )}
-                >
-                  {d.value}
-                </span>
-              </div>
-            ))}
+            <AdmissionRow label="Admission Date" value={
+              student.admission_date
+                ? new Date(student.admission_date).toLocaleDateString("en-IN", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })
+                : "—"
+            } />
+            <AdmissionRow label="Quota" value={student.admission_quota ?? "—"} />
+            <AdmissionRow label="NEET Rank" value={student.neet_rank != null ? student.neet_rank.toLocaleString("en-IN") : "—"} />
+            <AdmissionRow
+              label="NEET Score"
+              value={student.neet_score != null ? `${student.neet_score}/720` : "—"}
+              highlight={student.neet_score != null && student.neet_score >= 650}
+            />
+            <AdmissionRow label="Counseling Round" value={student.counseling_round ?? "—"} />
+            <AdmissionRow
+              label="NMC Uploaded"
+              value={student.nmc_uploaded ? "Yes" : "No"}
+              highlight={!!student.nmc_uploaded}
+              last
+            />
           </div>
         </SectionCard>
 
@@ -347,31 +334,15 @@ function PersonalTabContent() {
           title="Guardian Info"
         >
           <div className="space-y-6">
-            {GUARDIANS.map((g) => (
-              <div key={g.relation} className="flex gap-4">
-                <div
-                  className={cn(
-                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
-                    g.relation === "Father"
-                      ? "bg-blue-900/30 text-blue-400"
-                      : "bg-pink-900/30 text-pink-400",
-                  )}
-                >
-                  <Users className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="mb-0.5 text-xs text-gray-500">{g.relation}</p>
-                  <p className="text-sm font-semibold text-white">{g.name}</p>
-                  <p className="mt-1 text-xs text-gray-500">{g.phone}</p>
-                  <p className="text-xs text-gray-500">{g.occupation}</p>
-                </div>
-              </div>
-            ))}
-
-            <Button variant="outline" size="sm" className="w-full">
-              <Phone className="mr-2 h-3.5 w-3.5" />
-              Emergency Contact
-            </Button>
+            {student.father_name && (
+              <GuardianCard relation="Father" name={student.father_name} />
+            )}
+            {student.mother_name && (
+              <GuardianCard relation="Mother" name={student.mother_name} />
+            )}
+            {!student.father_name && !student.mother_name && (
+              <p className="text-sm text-gray-500">No guardian information available.</p>
+            )}
           </div>
         </SectionCard>
       </div>
@@ -380,225 +351,220 @@ function PersonalTabContent() {
 }
 
 // ---------------------------------------------------------------------------
-// Attendance & Fees Tab
+// Academic Tab
 // ---------------------------------------------------------------------------
 
-function AttendanceTabContent() {
+function AcademicTabContent({ student }: { student: StudentResponse }) {
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      {/* Left — 2/3 */}
       <div className="space-y-6 lg:col-span-2">
-        {/* Attendance Overview */}
+        <SectionCard
+          icon={<GraduationCap className="h-5 w-5 text-emerald-500" />}
+          title="Academic Progress"
+        >
+          <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
+            <InfoField label="Current Phase" value={student.current_phase ?? "—"} />
+            <InfoField
+              label="Current Semester"
+              value={student.current_semester ? `Semester ${student.current_semester}` : "—"}
+            />
+            <InfoField label="Enrollment Number" value={student.enrollment_number ?? "—"} />
+            <InfoField
+              label="University Reg. No."
+              value={student.university_registration_number ?? "—"}
+            />
+            <InfoField label="Admission Year" value={student.admission_year?.toString() ?? "—"} />
+            <InfoField label="Hosteler" value={student.is_hosteler ? "Yes" : "No"} />
+          </div>
+        </SectionCard>
+
+        {/* Subject-wise performance placeholder */}
         <Card>
-          <CardContent className="p-6">
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-lg font-bold text-white">
-                <Calendar className="h-5 w-5 text-emerald-500" />
-                Attendance Overview
-              </h2>
-              {/* TODO: Replace with actual academic year selector */}
-              <select className="cursor-pointer rounded-lg border-none bg-dark-elevated py-1.5 pl-3 pr-8 text-sm text-gray-300 focus:ring-1 focus:ring-emerald-500">
-                <option>Academic Year 2024-25</option>
-                <option>Academic Year 2023-24</option>
-              </select>
-            </div>
-
-            {/* Theory / Practical progress */}
-            <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {ATTENDANCE_SUMMARIES.map((att) => (
-                <div
-                  key={att.label}
-                  className="rounded-lg border border-dark-border bg-dark-elevated/30 p-4"
-                >
-                  <div className="mb-2 flex items-end justify-between">
-                    <span className="text-sm font-medium text-gray-400">
-                      {att.label}
-                    </span>
-                    <span className="text-2xl font-bold text-white">
-                      {att.percentage}%
-                    </span>
-                  </div>
-
-                  {/* Progress bar with NMC threshold */}
-                  <div className="relative mb-1 h-2 w-full rounded-full bg-gray-700">
-                    <div
-                      className={cn(
-                        "absolute left-0 top-0 h-2 rounded-full",
-                        att.status === "safe"
-                          ? "bg-emerald-500"
-                          : att.status === "warning"
-                            ? "bg-yellow-500"
-                            : "bg-red-500",
-                      )}
-                      style={{ width: `${att.percentage}%` }}
-                    />
-                    {/* NMC threshold marker */}
-                    <div
-                      className="absolute -top-1 z-10 h-4 w-0.5 bg-gray-500"
-                      style={{ left: `${att.nmcRequirement}%` }}
-                      title={`NMC Requirement: ${att.nmcRequirement}%`}
-                    />
-                  </div>
-
-                  <div className="mt-1 flex justify-between text-[10px] text-gray-400">
-                    <span>Current</span>
-                    <span className="text-gray-500">
-                      NMC Requirement: {att.nmcRequirement}%
-                    </span>
-                  </div>
-
-                  <p
-                    className={cn(
-                      "mt-2 flex items-center gap-1 text-xs",
-                      att.status === "safe"
-                        ? "text-green-400"
-                        : att.status === "warning"
-                          ? "text-yellow-400"
-                          : "text-red-400",
-                    )}
-                  >
-                    {att.status === "safe" ? (
-                      <CheckCircle className="h-3.5 w-3.5" />
-                    ) : (
-                      <AlertTriangle className="h-3.5 w-3.5" />
-                    )}
-                    {att.status === "safe"
-                      ? "Safe Zone"
-                      : "Just above threshold"}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            {/* Calendar heatmap */}
-            <h3 className="mb-3 text-sm font-semibold text-gray-300">
-              Monthly Breakdown
-            </h3>
-            <AttendanceCalendar months={ATTENDANCE_MONTHS} />
-          </CardContent>
-        </Card>
-
-        {/* Fee Payment History */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-lg font-bold text-white">
-                <Receipt className="h-5 w-5 text-emerald-500" />
-                Fee Payment History
-              </h2>
-              <Button variant="outline" size="sm">
-                Download Statement
-              </Button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left">
-                <thead>
-                  <tr className="border-b border-dark-border text-xs uppercase text-gray-500">
-                    <th className="px-2 py-3 font-medium">Date</th>
-                    <th className="px-2 py-3 font-medium">Receipt No.</th>
-                    <th className="px-2 py-3 font-medium">Particulars</th>
-                    <th className="px-2 py-3 font-medium">Method</th>
-                    <th className="px-2 py-3 text-right font-medium">
-                      Amount (INR)
-                    </th>
-                    <th className="px-2 py-3 text-center font-medium">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm">
-                  {FEE_PAYMENTS.map((p) => (
-                    <tr
-                      key={p.id}
-                      className="border-b border-dark-border/50 transition-colors hover:bg-dark-elevated/30"
-                    >
-                      <td className="px-2 py-3 text-gray-300">{p.date}</td>
-                      <td className="px-2 py-3 font-mono text-xs text-gray-500">
-                        {p.receiptNo}
-                      </td>
-                      <td className="px-2 py-3 text-gray-300">
-                        {p.particulars}
-                      </td>
-                      <td className="px-2 py-3">
-                        <span
-                          className={cn(
-                            "inline-flex items-center rounded px-2 py-0.5 text-[10px] font-medium",
-                            METHOD_STYLES[p.method],
-                          )}
-                        >
-                          {p.method}
-                        </span>
-                      </td>
-                      <td className="px-2 py-3 text-right font-medium text-white">
-                        {formatINRCurrency(p.amount)}
-                      </td>
-                      <td className="px-2 py-3 text-center">
-                        <button className="text-gray-400 transition-colors hover:text-emerald-500">
-                          <Download className="h-4 w-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <CardContent className="flex h-48 items-center justify-center p-6">
+            <div className="text-center">
+              <BookOpen className="mx-auto mb-2 h-8 w-8 text-gray-600" />
+              <p className="text-sm text-gray-500">
+                Subject-wise performance data coming soon.
+              </p>
+              <p className="mt-1 text-xs text-gray-600">
+                Depends on Student Engine assessment integration.
+              </p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Right — 1/3 */}
-      <div className="space-y-6">
-        {/* Outstanding Balance */}
-        <Card className="relative overflow-hidden border-red-900/50">
+      <div>
+        <SectionCard
+          icon={<ClipboardList className="h-5 w-5 text-emerald-500" />}
+          title="NEET Details"
+        >
+          <div className="space-y-4">
+            <AdmissionRow label="Roll Number" value={student.neet_roll_number ?? "—"} />
+            <AdmissionRow label="Score" value={student.neet_score != null ? `${student.neet_score}/720` : "—"} />
+            <AdmissionRow label="Rank" value={student.neet_rank != null ? student.neet_rank.toLocaleString("en-IN") : "—"} />
+            <AdmissionRow
+              label="Percentile"
+              value={student.neet_percentile != null ? `${student.neet_percentile}%` : "—"}
+              last
+            />
+          </div>
+        </SectionCard>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Fee Tab
+// ---------------------------------------------------------------------------
+
+function FeeTabContent({ studentId }: { studentId: string }) {
+  const { data: feeSummary, isLoading, isError, error, refetch } = useStudentFeeSummary(studentId);
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2"><CardSkeleton lines={6} /></div>
+        <div><CardSkeleton lines={4} /></div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/5 p-8 text-center">
+        <AlertTriangle className="h-6 w-6 text-red-400" />
+        <p className="text-sm text-red-400">{error?.message || "Failed to load fee data"}</p>
+        <Button variant="outline" size="sm" onClick={() => refetch()}>
+          <RefreshCw className="mr-2 h-4 w-4" /> Retry
+        </Button>
+      </div>
+    );
+  }
+
+  if (!feeSummary) return null;
+
+  const totalFee = paisaToRupees(feeSummary.total_fee);
+  const totalPaid = paisaToRupees(feeSummary.total_paid);
+  const outstanding = paisaToRupees(feeSummary.outstanding);
+  const overpaid = paisaToRupees(feeSummary.overpaid);
+  const paidPct = totalFee > 0 ? Math.round((totalPaid / totalFee) * 100) : 0;
+
+  return (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      {/* Left — Fee breakdown */}
+      <div className="space-y-6 lg:col-span-2">
+        <Card>
           <CardContent className="p-6">
-            <div className="pointer-events-none absolute right-0 top-0 p-4 opacity-10">
-              <CreditCard className="h-20 w-20 text-red-500" />
-            </div>
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
-              Outstanding Balance
-            </h3>
-            <div className="mb-2 mt-4">
-              <span className="text-3xl font-bold text-red-400">
-                {formatINRCurrency(OUTSTANDING.amount)}
-              </span>
-            </div>
-            <p className="mb-6 text-sm text-gray-300">
-              Due for:{" "}
-              <span className="font-medium">{OUTSTANDING.description}</span>
-            </p>
-
-            <div className="space-y-3">
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>Due Date</span>
-                <span className="font-medium text-red-500">
-                  {OUTSTANDING.dueDate}{" "}
-                  {OUTSTANDING.isOverdue && "(Overdue)"}
-                </span>
-              </div>
-              <div className="h-1.5 w-full rounded-full bg-gray-800">
-                <div className="h-1.5 w-full rounded-full bg-red-500" />
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <Button
-                variant="outline"
-                className="w-full border-red-800 bg-red-900/20 text-red-400 hover:bg-red-900/30"
-              >
-                <Send className="mr-2 h-3.5 w-3.5" />
-                Send Reminder
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-lg font-bold text-white">
+                <Receipt className="h-5 w-5 text-emerald-500" />
+                Fee Summary
+              </h2>
+              <Button variant="outline" size="sm">
+                <Download className="mr-2 h-4 w-4" />
+                Download Statement
               </Button>
+            </div>
+
+            {/* Summary cards */}
+            <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <FeeStat label="Total Fee" value={formatINRCurrency(totalFee)} />
+              <FeeStat label="Paid" value={formatINRCurrency(totalPaid)} valueClass="text-emerald-500" />
+              <FeeStat label="Outstanding" value={formatINRCurrency(outstanding)} valueClass={outstanding > 0 ? "text-red-400" : "text-gray-400"} />
+              <FeeStat label="Overpaid" value={formatINRCurrency(overpaid)} valueClass={overpaid > 0 ? "text-blue-400" : "text-gray-400"} />
+            </div>
+
+            {/* Progress bar */}
+            <div className="mb-2">
+              <div className="flex justify-between text-xs text-gray-400">
+                <span>Payment Progress</span>
+                <span className="font-medium text-white">{paidPct}%</span>
+              </div>
+              <div className="mt-1 h-2 w-full rounded-full bg-gray-700">
+                <div
+                  className={cn(
+                    "h-2 rounded-full transition-all",
+                    paidPct >= 100 ? "bg-emerald-500" : paidPct >= 50 ? "bg-yellow-500" : "bg-red-500"
+                  )}
+                  style={{ width: `${Math.min(paidPct, 100)}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Payment history placeholder */}
+            <div className="mt-8 border-t border-dark-border pt-6">
+              <h3 className="mb-3 text-sm font-semibold text-gray-300">
+                Payment History
+              </h3>
+              <p className="text-xs text-gray-500">
+                Individual payment transactions will be available when the fee
+                payments list endpoint is wired. The summary above reflects the
+                aggregate calculation.
+              </p>
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Right — Outstanding card */}
+      <div className="space-y-6">
+        {outstanding > 0 ? (
+          <Card className="relative overflow-hidden border-red-900/50">
+            <CardContent className="p-6">
+              <div className="pointer-events-none absolute right-0 top-0 p-4 opacity-10">
+                <CreditCard className="h-20 w-20 text-red-500" />
+              </div>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
+                Outstanding Balance
+              </h3>
+              <div className="mb-2 mt-4">
+                <span className="text-3xl font-bold text-red-400">
+                  {formatINRCurrency(outstanding)}
+                </span>
+              </div>
+              <div className="mt-4 h-1.5 w-full rounded-full bg-gray-800">
+                <div className="h-1.5 w-full rounded-full bg-red-500" />
+              </div>
+              <div className="mt-6">
+                {/* TODO: Wire to notification/reminder endpoint */}
+                <Button
+                  variant="outline"
+                  className="w-full border-red-800 bg-red-900/20 text-red-400 hover:bg-red-900/30"
+                >
+                  <Send className="mr-2 h-3.5 w-3.5" />
+                  Send Reminder
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="relative overflow-hidden border-emerald-900/50">
+            <CardContent className="p-6">
+              <div className="pointer-events-none absolute right-0 top-0 p-4 opacity-10">
+                <CheckCircle className="h-20 w-20 text-emerald-500" />
+              </div>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
+                Fee Status
+              </h3>
+              <div className="mt-4 flex items-center gap-2">
+                <CheckCircle className="h-6 w-6 text-emerald-500" />
+                <span className="text-lg font-bold text-emerald-400">All Paid</span>
+              </div>
+              {overpaid > 0 && (
+                <p className="mt-2 text-sm text-blue-400">
+                  Overpaid: {formatINRCurrency(overpaid)}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Quick Actions */}
         <Card>
           <CardContent className="p-5">
-            <h3 className="mb-4 text-sm font-semibold text-white">
-              Quick Actions
-            </h3>
+            <h3 className="mb-4 text-sm font-semibold text-white">Quick Actions</h3>
             <div className="space-y-2">
               <QuickAction
                 icon={<CreditCard className="h-4 w-4" />}
@@ -607,49 +573,158 @@ function AttendanceTabContent() {
                 description="Add manual payment"
               />
               <QuickAction
-                icon={<PenLine className="h-4 w-4" />}
-                iconBg="bg-blue-900/30 text-blue-400 group-hover:bg-blue-600 group-hover:text-white"
-                label="Modify Attendance"
-                description="Request correction"
-              />
-              <QuickAction
                 icon={<Printer className="h-4 w-4" />}
                 iconBg="bg-orange-900/30 text-orange-400 group-hover:bg-orange-600 group-hover:text-white"
-                label="Print Report"
-                description="Attendance summary"
+                label="Print Fee Receipt"
+                description="Latest payment"
               />
             </div>
           </CardContent>
         </Card>
 
-        {/* Annual Summary */}
+        {/* Fee Overview */}
         <div className="rounded-xl border border-gray-800 bg-gradient-to-br from-gray-800 to-black p-5 text-white shadow-sm">
-          <h3 className="mb-4 text-sm font-semibold text-gray-200">
-            Annual Summary
-          </h3>
+          <h3 className="mb-4 text-sm font-semibold text-gray-200">Fee Overview</h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between border-b border-gray-700 pb-2">
               <span className="text-xs text-gray-400">Total Fees</span>
-              <span className="font-mono text-sm">
-                {formatINRCurrency(ANNUAL_SUMMARY.totalFees)}
-              </span>
+              <span className="font-mono text-sm">{formatINRCurrency(totalFee)}</span>
             </div>
             <div className="flex items-center justify-between border-b border-gray-700 pb-2">
               <span className="text-xs text-gray-400">Paid Amount</span>
               <span className="font-mono text-sm text-emerald-500">
-                {formatINRCurrency(ANNUAL_SUMMARY.paidAmount)}
+                {formatINRCurrency(totalPaid)}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-400">Attendance Days</span>
-              <span className="font-mono text-sm">
-                {ANNUAL_SUMMARY.attendanceDays} / {ANNUAL_SUMMARY.totalDays}
+              <span className="text-xs text-gray-400">Balance</span>
+              <span
+                className={cn(
+                  "font-mono text-sm",
+                  outstanding > 0 ? "text-red-400" : "text-emerald-500"
+                )}
+              >
+                {outstanding > 0
+                  ? formatINRCurrency(outstanding)
+                  : formatINRCurrency(0)}
               </span>
             </div>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Placeholder tabs (no backend endpoint yet)
+// ---------------------------------------------------------------------------
+
+function AttendanceTabPlaceholder() {
+  return (
+    <div className="flex h-64 flex-col items-center justify-center rounded-xl border border-dashed border-dark-border">
+      <Calendar className="mb-3 h-8 w-8 text-gray-600" />
+      <p className="text-sm text-gray-500">
+        Attendance data coming soon
+      </p>
+      <p className="mt-1 text-xs text-gray-600">
+        Requires Integration Engine AEBAS attendance endpoint.
+      </p>
+    </div>
+  );
+}
+
+function DocumentsTabPlaceholder() {
+  return (
+    <div className="flex h-64 flex-col items-center justify-center rounded-xl border border-dashed border-dark-border">
+      <Folder className="mb-3 h-8 w-8 text-gray-600" />
+      <p className="text-sm text-gray-500">
+        Student documents coming soon
+      </p>
+      <p className="mt-1 text-xs text-gray-600">
+        StudentDocument model exists — routes need to be registered.
+      </p>
+    </div>
+  );
+}
+
+function LogbookTabPlaceholder() {
+  return (
+    <div className="flex h-64 flex-col items-center justify-center rounded-xl border border-dashed border-dark-border">
+      <BookOpen className="mb-3 h-8 w-8 text-gray-600" />
+      <p className="text-sm text-gray-500">
+        CBME Logbook coming soon
+      </p>
+      <p className="mt-1 text-xs text-gray-600">
+        Requires Student Engine logbook integration.
+      </p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 404 state
+// ---------------------------------------------------------------------------
+
+function NotFoundState() {
+  return (
+    <div className="space-y-6">
+      <BackButton />
+      <div className="flex flex-col items-center gap-4 rounded-xl border border-dark-border bg-dark-surface p-16 text-center">
+        <AlertTriangle className="h-10 w-10 text-yellow-500" />
+        <h2 className="text-xl font-bold text-white">Student Not Found</h2>
+        <p className="text-sm text-gray-400">
+          This student record may have been removed or the ID is invalid.
+        </p>
+        <Link href="/dashboard/admin/students/records">
+          <Button>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Student Records
+          </Button>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Skeletons
+// ---------------------------------------------------------------------------
+
+function HeaderSkeleton() {
+  return (
+    <div className="rounded-xl border border-dark-border bg-dark-surface p-6">
+      <div className="flex items-start gap-6">
+        <div className="h-24 w-24 animate-pulse rounded-full bg-gray-700" />
+        <div className="flex-1 space-y-3">
+          <div className="h-7 w-48 animate-pulse rounded bg-gray-700" />
+          <div className="h-4 w-64 animate-pulse rounded bg-gray-700/60" />
+          <div className="mt-4 grid grid-cols-4 gap-4 border-t border-dark-border pt-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="space-y-1">
+                <div className="h-3 w-16 animate-pulse rounded bg-gray-700/60" />
+                <div className="h-4 w-24 animate-pulse rounded bg-gray-700" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CardSkeleton({ lines }: { lines: number }) {
+  return (
+    <Card>
+      <div className="border-b border-dark-border bg-dark-elevated/30 px-6 py-4">
+        <div className="h-5 w-40 animate-pulse rounded bg-gray-700" />
+      </div>
+      <CardContent className="space-y-3 p-6">
+        {Array.from({ length: lines }).map((_, i) => (
+          <div key={i} className="h-4 animate-pulse rounded bg-gray-700/60" style={{ width: `${60 + Math.random() * 30}%` }} />
+        ))}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -665,7 +740,7 @@ function SectionCard({
 }: {
   icon: React.ReactNode;
   title: string;
-  action?: string;
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -675,11 +750,7 @@ function SectionCard({
           {icon}
           {title}
         </h3>
-        {action && (
-          <button className="text-xs font-medium text-emerald-500 hover:underline">
-            {action}
-          </button>
-        )}
+        {action}
       </div>
       <CardContent className="p-6">{children}</CardContent>
     </Card>
@@ -713,6 +784,103 @@ function InfoField({
         </p>
         {verified && <Verified className="h-3.5 w-3.5 text-green-500" />}
       </div>
+    </div>
+  );
+}
+
+function EditField({
+  label,
+  value,
+  onChange,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium text-gray-500">
+        {label}
+      </label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-lg border border-gray-700 bg-dark-elevated px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+      />
+    </div>
+  );
+}
+
+function AdmissionRow({
+  label,
+  value,
+  highlight,
+  last,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+  last?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-between py-2",
+        !last && "border-b border-dark-border",
+      )}
+    >
+      <span className="text-xs text-gray-500">{label}</span>
+      <span
+        className={cn(
+          "text-sm font-medium",
+          highlight ? "text-green-400" : "text-white",
+        )}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function GuardianCard({ relation, name }: { relation: string; name: string }) {
+  return (
+    <div className="flex gap-4">
+      <div
+        className={cn(
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
+          relation === "Father"
+            ? "bg-blue-900/30 text-blue-400"
+            : "bg-pink-900/30 text-pink-400",
+        )}
+      >
+        <Users className="h-5 w-5" />
+      </div>
+      <div>
+        <p className="mb-0.5 text-xs text-gray-500">{relation}</p>
+        <p className="text-sm font-semibold text-white">{name}</p>
+      </div>
+    </div>
+  );
+}
+
+function FeeStat({
+  label,
+  value,
+  valueClass,
+}: {
+  label: string;
+  value: string;
+  valueClass?: string;
+}) {
+  return (
+    <div className="rounded-lg border border-dark-border bg-dark-elevated/30 p-3">
+      <p className="text-xs text-gray-500">{label}</p>
+      <p className={cn("mt-1 text-lg font-bold", valueClass ?? "text-white")}>
+        {value}
+      </p>
     </div>
   );
 }

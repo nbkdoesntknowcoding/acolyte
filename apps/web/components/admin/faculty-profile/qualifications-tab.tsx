@@ -1,23 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import {
   GraduationCap,
-  Plus,
-  Edit,
   CheckCircle,
   Clock,
-  CloudUpload,
-  FileText,
-  Image,
-  Eye,
-  Trash2,
   RefreshCw,
-  History,
-  Mail,
-  Printer,
   Check,
   AlertTriangle,
   ShieldCheck,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,90 +21,44 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
-import type {
-  AcademicQualification,
-  QualificationCertificate,
-  NMCRuleCheckItem,
-} from "@/types/admin";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  useFacultyPortfolio,
+  useValidateNMC,
+} from "@/lib/hooks/admin/use-faculty";
+import type { FacultyResponse, NMCValidationResponse } from "@/types/admin-api";
 
 // ---------------------------------------------------------------------------
-// TODO: Replace with API call — GET /api/v1/admin/faculty/{id}/qualifications
+// Props
 // ---------------------------------------------------------------------------
 
-const QUALIFICATIONS: AcademicQualification[] = [
-  {
-    id: "1",
-    degree: "MBBS",
-    regNo: "12345/2000",
-    university: "AIIMS New Delhi",
-    year: "2000",
-    specialization: "General Medicine",
-    nmcVerified: true,
-  },
-  {
-    id: "2",
-    degree: "MD",
-    regNo: "56789/2005",
-    university: "PGIMER Chandigarh",
-    year: "2005",
-    specialization: "Anatomy",
-    nmcVerified: true,
-  },
-  {
-    id: "3",
-    degree: "Fellowship (FAMS)",
-    university: "National Academy of Medical Sciences",
-    year: "2012",
-    specialization: "Anatomy",
-    nmcVerified: false,
-  },
-];
+interface QualificationsTabProps {
+  faculty: FacultyResponse;
+}
 
-const CERTIFICATES: QualificationCertificate[] = [
-  {
-    id: "1",
-    name: "MBBS_Degree.pdf",
-    size: "2.4 MB",
-    uploadDate: "12 Aug 2023",
-    type: "pdf",
-  },
-  {
-    id: "2",
-    name: "MD_Certificate.jpg",
-    size: "1.8 MB",
-    uploadDate: "15 Aug 2023",
-    type: "image",
-  },
-];
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
-const NMC_CHECKS: NMCRuleCheckItem[] = [
-  {
-    title: "Recognized University",
-    description:
-      "MD degree is from PGIMER, which is in the NMC recognized list.",
-    status: "passed",
-  },
-  {
-    title: "Registration Validity",
-    description:
-      "Registration No. 56789 is active and verified in IMR database.",
-    status: "passed",
-  },
-  {
-    title: "Additional Qualification",
-    description:
-      "Additional qualification (MD) successfully registered on 2005.",
-    status: "passed",
-  },
-  {
-    title: "Fellowship Verification",
-    description: "FAMS verification pending from granting authority.",
-    status: "pending",
-  },
-];
+export function QualificationsTab({ faculty }: QualificationsTabProps) {
+  const {
+    data: portfolio,
+    isLoading: portfolioLoading,
+    error: portfolioError,
+  } = useFacultyPortfolio(faculty.id);
+  const validateMutation = useValidateNMC();
+  const [validationResult, setValidationResult] =
+    useState<NMCValidationResponse | null>(null);
 
-export function QualificationsTab() {
+  const qualifications = portfolio?.qualifications ?? [];
+
+  const handleValidateNMC = () => {
+    setValidationResult(null);
+    validateMutation.mutate(faculty.id, {
+      onSuccess: (result) => setValidationResult(result),
+    });
+  };
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       {/* Left Column — 2/3 */}
@@ -124,220 +70,253 @@ export function QualificationsTab() {
               <GraduationCap className="h-5 w-5 text-emerald-500" />
               Academic Qualifications
             </h2>
-            <Button variant="ghost" size="sm" className="text-emerald-500">
-              <Plus className="mr-1 h-4 w-4" /> Add New
-            </Button>
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-[#262626]/50 text-[11px] uppercase tracking-wider text-gray-500">
-                <TableHead className="font-semibold">
-                  Degree / Course
-                </TableHead>
-                <TableHead className="font-semibold">
-                  University / Board
-                </TableHead>
-                <TableHead className="font-semibold">Year</TableHead>
-                <TableHead className="font-semibold">Specialization</TableHead>
-                <TableHead className="text-center font-semibold">
-                  NMC Verified
-                </TableHead>
-                <TableHead className="text-right font-semibold">
-                  Actions
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {QUALIFICATIONS.map((q) => (
-                <TableRow
-                  key={q.id}
-                  className="group transition-colors hover:bg-[#262626]/20"
-                >
-                  <TableCell>
-                    <div className="font-medium text-white">{q.degree}</div>
-                    {q.regNo && (
-                      <div className="text-xs text-gray-500">
-                        Reg No: {q.regNo}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-gray-300">
-                    {q.university}
-                  </TableCell>
-                  <TableCell className="text-gray-300">{q.year}</TableCell>
-                  <TableCell className="text-gray-300">
-                    {q.specialization}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {q.nmcVerified ? (
-                      <div
-                        className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500"
-                        title="Verified"
-                      >
-                        <CheckCircle className="h-4 w-4" />
-                      </div>
-                    ) : (
-                      <div
-                        className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-700 text-gray-400"
-                        title="Pending Verification"
-                      >
-                        <Clock className="h-4 w-4" />
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <button className="p-1 text-gray-500 hover:text-white">
-                      <Edit className="h-4 w-4" />
-                    </button>
-                  </TableCell>
-                </TableRow>
+
+          {portfolioLoading ? (
+            <div className="space-y-3 p-6">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
               ))}
-            </TableBody>
-          </Table>
-        </Card>
-
-        {/* Qualification Certificates */}
-        <Card>
-          <CardContent className="p-6">
-            <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-white">
-              <CloudUpload className="h-5 w-5 text-gray-400" />
-              Qualification Certificates
-            </h2>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {/* Upload Dropzone */}
-              <div className="group flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-gray-600 p-6 text-center transition-colors hover:bg-[#262626]/30">
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#262626] transition-all group-hover:bg-emerald-500/20">
-                  <CloudUpload className="h-5 w-5 text-gray-400 group-hover:text-emerald-500" />
-                </div>
-                <p className="text-sm font-medium text-gray-300">
-                  Upload Certificate
-                </p>
-                <p className="mt-1 text-xs text-gray-500">
-                  PDF, JPG up to 5MB
-                </p>
-              </div>
-
-              {/* Uploaded Files */}
-              <div className="space-y-3">
-                {CERTIFICATES.map((cert) => (
-                  <div
-                    key={cert.id}
-                    className="flex items-center justify-between rounded-lg border border-dark-border bg-[#262626] p-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={cn(
-                          "flex h-8 w-8 items-center justify-center rounded",
-                          cert.type === "pdf"
-                            ? "bg-red-500/10 text-red-400"
-                            : "bg-blue-500/10 text-blue-400",
-                        )}
-                      >
-                        {cert.type === "pdf" ? (
-                          <FileText className="h-4 w-4" />
-                        ) : (
-                          <Image className="h-4 w-4" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-white">
-                          {cert.name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {cert.size} &bull; Uploaded {cert.uploadDate}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center">
-                      <button className="p-1 text-gray-400 hover:text-white">
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      <button className="p-1 text-gray-400 hover:text-red-400">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
-          </CardContent>
+          ) : portfolioError ? (
+            <div className="p-6">
+              {/* Fallback: show the single qualification from FacultyResponse */}
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-[#262626]/50 text-[11px] uppercase tracking-wider text-gray-500">
+                    <TableHead className="font-semibold">
+                      Degree / Course
+                    </TableHead>
+                    <TableHead className="font-semibold">
+                      Specialization
+                    </TableHead>
+                    <TableHead className="text-center font-semibold">
+                      NMC Verified
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell className="font-medium text-white">
+                      {faculty.qualification ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-gray-300">
+                      {faculty.specialization ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {faculty.qualification_validated ? (
+                        <div
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500"
+                          title="Verified"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                        </div>
+                      ) : (
+                        <div
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-700 text-gray-400"
+                          title="Pending"
+                        >
+                          <Clock className="h-4 w-4" />
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+              <p className="mt-3 text-xs text-gray-500">
+                Detailed qualifications will be available once the portfolio
+                endpoint is configured.
+              </p>
+            </div>
+          ) : qualifications.length === 0 ? (
+            <div className="p-6 text-center text-sm text-gray-500">
+              No qualifications recorded.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-[#262626]/50 text-[11px] uppercase tracking-wider text-gray-500">
+                  <TableHead className="font-semibold">
+                    Degree / Course
+                  </TableHead>
+                  <TableHead className="font-semibold">
+                    University / Board
+                  </TableHead>
+                  <TableHead className="font-semibold">Year</TableHead>
+                  <TableHead className="font-semibold">
+                    Specialization
+                  </TableHead>
+                  <TableHead className="text-center font-semibold">
+                    NMC Verified
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {qualifications.map((q) => (
+                  <TableRow
+                    key={q.id}
+                    className="group transition-colors hover:bg-[#262626]/20"
+                  >
+                    <TableCell>
+                      <div className="font-medium text-white">{q.degree}</div>
+                      {q.is_highest && (
+                        <span className="text-[10px] text-emerald-500">
+                          Highest qualification
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-gray-300">
+                      {q.university ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-gray-300">
+                      {q.year_of_passing ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-gray-300">
+                      {q.specialization ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {q.nmc_verified ? (
+                        <div
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500"
+                          title="Verified"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                        </div>
+                      ) : (
+                        <div
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-700 text-gray-400"
+                          title="Pending Verification"
+                        >
+                          <Clock className="h-4 w-4" />
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </Card>
       </div>
 
       {/* Right Column — 1/3 */}
       <div className="space-y-6 lg:col-span-1">
-        {/* NMC Rules Check */}
+        {/* NMC Validation */}
         <Card className="relative overflow-hidden">
           <CardContent className="p-5">
             <h3 className="mb-4 flex items-center gap-2 text-base font-bold text-white">
               <ShieldCheck className="h-5 w-5 text-emerald-500" />
               NMC Rules Check
             </h3>
-            <div className="space-y-4">
-              {NMC_CHECKS.map((check) => (
-                <div key={check.title} className="flex gap-3">
+
+            {/* Validation result */}
+            {validationResult && (
+              <div className="mb-4 space-y-3">
+                <div className="flex gap-3">
                   <div className="mt-0.5 shrink-0">
-                    {check.status === "passed" ? (
+                    {validationResult.eligible ? (
                       <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20">
                         <Check className="h-3 w-3 text-emerald-500" />
                       </div>
                     ) : (
-                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-yellow-500/20">
-                        <AlertTriangle className="h-3 w-3 text-yellow-500" />
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500/20">
+                        <AlertTriangle className="h-3 w-3 text-red-500" />
                       </div>
                     )}
                   </div>
                   <div>
                     <p className="text-sm font-medium text-white">
-                      {check.title}
+                      {validationResult.eligible
+                        ? "Eligible"
+                        : "Not Eligible"}
                     </p>
                     <p className="mt-0.5 text-xs text-gray-400">
-                      {check.description}
+                      Eligible designation:{" "}
+                      {validationResult.designation_eligible}
                     </p>
                   </div>
                 </div>
-              ))}
+                {validationResult.notes && (
+                  <div className="rounded-lg border border-dark-border bg-[#262626]/50 p-3 text-xs text-gray-300">
+                    {validationResult.notes}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Validation error */}
+            {validateMutation.isError && (
+              <div className="mb-4 rounded-lg border border-red-500/20 bg-red-500/5 p-3 text-xs text-red-400">
+                Validation failed: {validateMutation.error?.message ?? "Endpoint not available yet."}
+              </div>
+            )}
+
+            {/* Current status */}
+            <div className="space-y-3">
+              <div className="flex gap-3">
+                <div className="mt-0.5 shrink-0">
+                  {faculty.qualification_validated ? (
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20">
+                      <Check className="h-3 w-3 text-emerald-500" />
+                    </div>
+                  ) : (
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-yellow-500/20">
+                      <AlertTriangle className="h-3 w-3 text-yellow-500" />
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-white">
+                    Qualification Validation
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-400">
+                    {faculty.qualification_validated
+                      ? "Qualifications verified against NMC records"
+                      : "Pending verification"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <div className="mt-0.5 shrink-0">
+                  {faculty.is_eligible_per_nmc ? (
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20">
+                      <Check className="h-3 w-3 text-emerald-500" />
+                    </div>
+                  ) : (
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-yellow-500/20">
+                      <AlertTriangle className="h-3 w-3 text-yellow-500" />
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-white">
+                    NMC Eligibility
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-400">
+                    {faculty.is_eligible_per_nmc
+                      ? `Eligible as ${faculty.designation ?? "Faculty"}`
+                      : "Eligibility not confirmed"}
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div className="mt-6 border-t border-dark-border pt-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">
-                  Last automated check:
-                </span>
-                <span className="font-mono text-xs text-gray-300">
-                  Today, 09:41 AM
-                </span>
-              </div>
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-3 w-full text-xs"
+                className="w-full text-xs"
+                onClick={handleValidateNMC}
+                disabled={validateMutation.isPending}
               >
-                <RefreshCw className="mr-2 h-3.5 w-3.5" /> Re-run Validation
+                {validateMutation.isPending ? (
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                )}
+                Validate NMC
               </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Quick Actions */}
-        <Card>
-          <CardContent className="p-5">
-            <h3 className="mb-4 text-sm font-semibold text-gray-300">
-              Quick Actions
-            </h3>
-            <div className="space-y-2">
-              <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-gray-400 transition-colors hover:bg-[#262626] hover:text-white">
-                <History className="h-5 w-5" />
-                Request Transcript
-              </button>
-              <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-gray-400 transition-colors hover:bg-[#262626] hover:text-white">
-                <Mail className="h-5 w-5" />
-                Email Verification Link
-              </button>
-              <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-gray-400 transition-colors hover:bg-[#262626] hover:text-white">
-                <Printer className="h-5 w-5" />
-                Print Qualification Report
-              </button>
             </div>
           </CardContent>
         </Card>

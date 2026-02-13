@@ -5,79 +5,47 @@ import {
   Briefcase,
   CheckCircle,
   Lock,
-  Phone,
-  FileText,
-  Image,
-  Eye,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import type {
-  FacultyBasicInfo,
-  FacultyServiceDetails,
-  FacultyRegistrationId,
-  FacultyEmergencyContact,
-  FacultyDocumentItem,
-} from "@/types/admin";
+import type { FacultyResponse } from "@/types/admin-api";
 
 // ---------------------------------------------------------------------------
-// TODO: Replace with API call — GET /api/v1/admin/faculty/{id}/personal
+// Props
 // ---------------------------------------------------------------------------
 
-const BASIC_INFO: FacultyBasicInfo = {
-  fullName: "Dr. Sunil Kumar",
-  dob: "15 May 1978 (46 Years)",
-  gender: "Male",
-  maritalStatus: "Married",
-  fatherName: "Mr. Ramesh Kumar",
-  nationality: "Indian",
-  address:
-    "A-102, Faculty Quarters, Acolyte Medical College Campus, Green Valley, New Delhi - 110001",
-};
+interface PersonalTabProps {
+  faculty: FacultyResponse;
+  departmentName: string;
+}
 
-const SERVICE_DETAILS: FacultyServiceDetails = {
-  dateOfJoining: "12 August 2010",
-  designationAtJoining: "Assistant Professor",
-  employmentType: "Regular / Permanent",
-  retirementDate: "31 May 2038",
-  retirementCountdown: "14 Years left",
-  lastPromotionDate: "01 July 2018",
-};
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
-const REGISTRATION_IDS: FacultyRegistrationId[] = [
-  {
-    label: "NMC Registration",
-    value: "MCI-12345/2000",
-    subLabel: "State: Delhi Medical Council",
-    verified: true,
-  },
-  {
-    label: "AEBAS ID",
-    value: "10029388",
-    subLabel: "Last Sync: Today, 09:00 AM",
-    verified: true,
-  },
-  { label: "PAN Card", value: "ABCDE1234F", verified: false, locked: true },
-  {
-    label: "Aadhar Number",
-    value: "XXXX-XXXX-9876",
-    verified: false,
-    locked: true,
-  },
-];
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return "—";
+  try {
+    return new Date(dateStr).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return dateStr;
+  }
+}
 
-const EMERGENCY_CONTACT: FacultyEmergencyContact = {
-  name: "Mrs. Meena Kumar",
-  initials: "MK",
-  relation: "Wife",
-  phone: "+91 98765 00000",
-};
-
-const DOCUMENTS: FacultyDocumentItem[] = [
-  { name: "Appointment Letter.pdf", size: "2MB", type: "pdf" },
-  { name: "Joining Report.pdf", size: "1.5MB", type: "pdf" },
-  { name: "NMC Certificate.jpg", size: "3MB", type: "image" },
-];
+function retirementCountdown(dateStr: string | null): string {
+  if (!dateStr) return "—";
+  const diff = new Date(dateStr).getTime() - Date.now();
+  if (diff <= 0) return "Retired";
+  const years = Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
+  const months = Math.floor(
+    (diff % (365.25 * 24 * 60 * 60 * 1000)) / (30.44 * 24 * 60 * 60 * 1000)
+  );
+  if (years > 0) return `${years}Y ${months}M left`;
+  return `${months}M left`;
+}
 
 function InfoField({ label, value }: { label: string; value: string }) {
   return (
@@ -92,7 +60,37 @@ function InfoField({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function PersonalTab() {
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+export function PersonalTab({ faculty, departmentName }: PersonalTabProps) {
+  const registrationIds = [
+    {
+      label: "NMC Registration",
+      value: faculty.nmc_faculty_id ?? "—",
+      subLabel: faculty.qualification_validated
+        ? "Validated"
+        : "Pending validation",
+      verified: faculty.qualification_validated ?? false,
+    },
+    {
+      label: "AEBAS ID",
+      value: faculty.aebas_id ?? "—",
+      verified: !!faculty.aebas_id,
+    },
+    {
+      label: "Employee ID",
+      value: faculty.employee_id ?? "—",
+      verified: !!faculty.employee_id,
+    },
+    {
+      label: "ORCID iD",
+      value: faculty.orcid_id ?? "—",
+      verified: !!faculty.orcid_id,
+    },
+  ];
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       {/* Left Column — 2/3 */}
@@ -105,24 +103,24 @@ export function PersonalTab() {
               Basic Information
             </h3>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <InfoField label="Full Name" value={BASIC_INFO.fullName} />
-              <InfoField label="Date of Birth" value={BASIC_INFO.dob} />
-              <InfoField label="Gender" value={BASIC_INFO.gender} />
+              <InfoField label="Full Name" value={faculty.name} />
               <InfoField
-                label="Marital Status"
-                value={BASIC_INFO.maritalStatus}
+                label="Date of Birth"
+                value={formatDate(faculty.date_of_birth)}
               />
+              <InfoField label="Gender" value={faculty.gender ?? "—"} />
+              <InfoField label="Email" value={faculty.email ?? "—"} />
+              <InfoField label="Phone" value={faculty.phone ?? "—"} />
               <InfoField
-                label="Father's Name"
-                value={BASIC_INFO.fatherName}
+                label="Specialization"
+                value={faculty.specialization ?? "—"}
               />
-              <InfoField label="Nationality" value={BASIC_INFO.nationality} />
-              <div className="md:col-span-2">
+              {faculty.sub_specialization && (
                 <InfoField
-                  label="Residential Address"
-                  value={BASIC_INFO.address}
+                  label="Sub-Specialization"
+                  value={faculty.sub_specialization}
                 />
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -136,16 +134,20 @@ export function PersonalTab() {
             </h3>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <InfoField
-                label="Date of Joining (Current)"
-                value={SERVICE_DETAILS.dateOfJoining}
+                label="Date of Joining"
+                value={formatDate(faculty.date_of_joining)}
               />
               <InfoField
-                label="Designation at Joining"
-                value={SERVICE_DETAILS.designationAtJoining}
+                label="Designation"
+                value={faculty.designation ?? "—"}
               />
               <InfoField
-                label="Current Employment Type"
-                value={SERVICE_DETAILS.employmentType}
+                label="Department"
+                value={departmentName}
+              />
+              <InfoField
+                label="Employment Type"
+                value={faculty.employment_type ?? "—"}
               />
               <div className="space-y-1">
                 <label className="text-xs font-medium uppercase text-gray-500">
@@ -153,16 +155,42 @@ export function PersonalTab() {
                 </label>
                 <div className="flex items-center justify-between border-b border-dark-border pb-2">
                   <p className="text-sm font-medium text-gray-200">
-                    {SERVICE_DETAILS.retirementDate}
+                    {formatDate(faculty.retirement_date)}
                   </p>
                   <span className="rounded bg-gray-800 px-2 py-0.5 text-xs text-gray-400">
-                    {SERVICE_DETAILS.retirementCountdown}
+                    {retirementCountdown(faculty.retirement_date)}
                   </span>
                 </div>
               </div>
               <InfoField
-                label="Last Promotion Date"
-                value={SERVICE_DETAILS.lastPromotionDate}
+                label="Pay Scale"
+                value={faculty.pay_scale_type ?? "—"}
+              />
+              <InfoField
+                label="Teaching Experience"
+                value={
+                  faculty.teaching_experience_years != null
+                    ? `${faculty.teaching_experience_years} years`
+                    : "—"
+                }
+              />
+              <InfoField
+                label="Total Experience"
+                value={
+                  faculty.total_experience_years != null
+                    ? `${faculty.total_experience_years} years`
+                    : "—"
+                }
+              />
+              <InfoField
+                label="BCME Completed"
+                value={
+                  faculty.bcme_completed === true
+                    ? "Yes"
+                    : faculty.bcme_completed === false
+                      ? "No"
+                      : "—"
+                }
               />
             </div>
           </CardContent>
@@ -178,10 +206,10 @@ export function PersonalTab() {
               Registration IDs
             </h3>
             <div className="space-y-4">
-              {REGISTRATION_IDS.map((reg) => (
+              {registrationIds.map((reg) => (
                 <div
                   key={reg.label}
-                  className="cursor-pointer rounded-lg border border-dark-border bg-[#262626]/50 p-3 transition-colors hover:border-emerald-500/50"
+                  className="rounded-lg border border-dark-border bg-[#262626]/50 p-3 transition-colors hover:border-emerald-500/50"
                 >
                   <div className="mb-1 flex items-center justify-between">
                     <span className="text-xs font-medium text-gray-400">
@@ -196,7 +224,7 @@ export function PersonalTab() {
                   <div className="font-mono text-sm tracking-wide text-white">
                     {reg.value}
                   </div>
-                  {reg.subLabel && (
+                  {"subLabel" in reg && reg.subLabel && (
                     <div className="mt-1 text-[10px] text-gray-500">
                       {reg.subLabel}
                     </div>
@@ -207,63 +235,36 @@ export function PersonalTab() {
           </CardContent>
         </Card>
 
-        {/* Emergency Contact */}
+        {/* NMC Eligibility Status */}
         <Card>
           <CardContent className="p-5">
             <h3 className="mb-4 text-base font-bold text-white">
-              Emergency Contact
+              NMC Eligibility
             </h3>
-            <div className="flex items-start gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-pink-500/20 text-xs font-bold text-pink-400">
-                {EMERGENCY_CONTACT.initials}
-              </div>
-              <div>
-                <p className="text-sm font-medium text-white">
-                  {EMERGENCY_CONTACT.name}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {EMERGENCY_CONTACT.relation}
-                </p>
-                <div className="mt-2 flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="h-6 text-xs">
-                    <Phone className="mr-1 h-3 w-3" /> Call
-                  </Button>
-                  <span className="text-xs text-gray-500">
-                    {EMERGENCY_CONTACT.phone}
-                  </span>
-                </div>
-              </div>
+            <div className="rounded-lg border border-dark-border bg-[#262626]/50 p-4 text-center">
+              {faculty.is_eligible_per_nmc === true ? (
+                <>
+                  <CheckCircle className="mx-auto h-8 w-8 text-emerald-500" />
+                  <p className="mt-2 text-sm font-medium text-emerald-400">
+                    Eligible per NMC
+                  </p>
+                </>
+              ) : faculty.is_eligible_per_nmc === false ? (
+                <>
+                  <Lock className="mx-auto h-8 w-8 text-red-400" />
+                  <p className="mt-2 text-sm font-medium text-red-400">
+                    Not eligible per NMC
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Lock className="mx-auto h-8 w-8 text-gray-500" />
+                  <p className="mt-2 text-sm font-medium text-gray-400">
+                    Eligibility not validated
+                  </p>
+                </>
+              )}
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Documents */}
-        <Card>
-          <CardContent className="p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-base font-bold text-white">Documents</h3>
-              <button className="text-xs font-medium text-emerald-500 hover:underline">
-                View All
-              </button>
-            </div>
-            <ul className="space-y-3">
-              {DOCUMENTS.map((doc) => (
-                <li
-                  key={doc.name}
-                  className="group flex cursor-pointer items-center gap-3 text-sm text-gray-400 transition-colors hover:text-white"
-                >
-                  {doc.type === "pdf" ? (
-                    <FileText className="h-5 w-5 text-red-400" />
-                  ) : (
-                    <Image className="h-5 w-5 text-blue-400" />
-                  )}
-                  <span className="flex-1 group-hover:underline">
-                    {doc.name}
-                  </span>
-                  <span className="text-xs text-gray-600">{doc.size}</span>
-                </li>
-              ))}
-            </ul>
           </CardContent>
         </Card>
       </div>

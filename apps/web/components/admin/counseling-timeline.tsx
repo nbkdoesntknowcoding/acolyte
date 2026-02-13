@@ -3,19 +3,46 @@
 import { Check } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import type { CounselingRound } from "@/types/admin";
+import type { CounselingRoundItem } from "@/types/admin-api";
 
 interface CounselingTimelineProps {
-  rounds: CounselingRound[];
-  currentPhase: string;
+  rounds: CounselingRoundItem[];
+  total: number;
+}
+
+/**
+ * Known counseling round display order.
+ * Rounds not in this list appear at the end in their original order.
+ */
+const ROUND_ORDER = [
+  "Round 1",
+  "Round 2",
+  "Round 3",
+  "Mop-Up",
+  "Stray Vacancy",
+  "Special Stray",
+];
+
+function sortRounds(rounds: CounselingRoundItem[]): CounselingRoundItem[] {
+  return [...rounds]
+    .filter((r) => r.counseling_round !== "Not Specified")
+    .sort((a, b) => {
+      const ia = ROUND_ORDER.indexOf(a.counseling_round);
+      const ib = ROUND_ORDER.indexOf(b.counseling_round);
+      return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+    });
 }
 
 export function CounselingTimeline({
   rounds,
-  currentPhase,
+  total,
 }: CounselingTimelineProps) {
-  const completedCount = rounds.filter((r) => r.status === "completed").length;
-  const progressWidth = `${((completedCount + 0.5) / rounds.length) * 100}%`;
+  const sorted = sortRounds(rounds);
+  const filledCount = sorted.filter((r) => r.count > 0).length;
+  const progressWidth =
+    sorted.length > 0
+      ? `${(filledCount / sorted.length) * 100}%`
+      : "0%";
 
   return (
     <Card>
@@ -38,87 +65,72 @@ export function CounselingTimeline({
             Counseling Schedule
           </h2>
           <span className="text-sm text-gray-500">
-            Current Phase:{" "}
-            <strong className="text-emerald-500">{currentPhase}</strong>
+            Total Admitted:{" "}
+            <strong className="text-emerald-500">{total}</strong>
           </span>
         </div>
 
-        <div className="relative">
-          {/* Background track */}
-          <div className="absolute left-0 top-1/2 h-0.5 w-full -translate-y-1/2 bg-gray-800" />
-          {/* Filled track */}
-          <div
-            className="absolute left-0 top-1/2 h-0.5 -translate-y-1/2 bg-emerald-500/30"
-            style={{ width: progressWidth }}
-          />
+        {sorted.length === 0 ? (
+          <p className="text-center text-sm text-gray-500">
+            No counseling round data available yet.
+          </p>
+        ) : (
+          <div className="relative">
+            {/* Background track */}
+            <div className="absolute left-0 top-1/2 h-0.5 w-full -translate-y-1/2 bg-gray-800" />
+            {/* Filled track */}
+            <div
+              className="absolute left-0 top-1/2 h-0.5 -translate-y-1/2 bg-emerald-500/30"
+              style={{ width: progressWidth }}
+            />
 
-          <div className="relative z-10 flex w-full justify-between">
-            {rounds.map((round) => (
-              <div
-                key={round.id}
-                className={cn(
-                  "flex cursor-pointer flex-col items-center",
-                  round.status === "upcoming" && "opacity-50",
-                )}
-              >
-                {/* Node */}
-                {round.status === "completed" && (
-                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full border-4 border-dark-surface bg-emerald-500 shadow-md">
-                    <Check className="h-4 w-4 text-white" />
-                  </div>
-                )}
-                {round.status === "in_progress" && (
-                  <div className="relative mb-3">
-                    <span className="absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full bg-emerald-500/40" />
-                    <div className="relative z-10 flex h-10 w-10 items-center justify-center rounded-full border-4 border-emerald-500 bg-dark-surface text-emerald-500 shadow-lg shadow-emerald-500/20">
-                      <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500" />
-                    </div>
-                  </div>
-                )}
-                {round.status === "upcoming" && (
-                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full border-4 border-dark-surface bg-dark-elevated text-gray-400">
-                    <span className="text-xs font-bold">
-                      {rounds.indexOf(round) + 1}
-                    </span>
-                  </div>
-                )}
-
-                {/* Label */}
-                <div className="text-center">
-                  <p
+            <div className="relative z-10 flex w-full justify-between">
+              {sorted.map((round, idx) => {
+                const hasAdmissions = round.count > 0;
+                return (
+                  <div
+                    key={round.counseling_round}
                     className={cn(
-                      "text-sm font-semibold",
-                      round.status === "in_progress"
-                        ? "font-bold text-emerald-500"
-                        : round.status === "completed"
-                          ? "text-white"
-                          : "text-gray-500",
+                      "flex flex-col items-center",
+                      !hasAdmissions && "opacity-50",
                     )}
                   >
-                    {round.name}
-                  </p>
-                  <p className="mt-0.5 text-xs text-gray-500">
-                    {round.status === "completed"
-                      ? "Completed"
-                      : round.status === "in_progress"
-                        ? "In Progress"
-                        : "Upcoming"}
-                  </p>
-                  {round.admittedCount != null && (
-                    <span className="mt-1 inline-block rounded bg-emerald-500/10 px-1.5 py-0.5 font-mono text-xs text-emerald-500">
-                      +{round.admittedCount} Admitted
-                    </span>
-                  )}
-                  {round.processingCount != null && (
-                    <span className="mt-1 inline-block rounded bg-yellow-500/10 px-1.5 py-0.5 font-mono text-xs text-yellow-500">
-                      ~{round.processingCount} Processing
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
+                    {/* Node */}
+                    {hasAdmissions ? (
+                      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full border-4 border-dark-surface bg-emerald-500 shadow-md">
+                        <Check className="h-4 w-4 text-white" />
+                      </div>
+                    ) : (
+                      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full border-4 border-dark-surface bg-dark-elevated text-gray-400">
+                        <span className="text-xs font-bold">{idx + 1}</span>
+                      </div>
+                    )}
+
+                    {/* Label */}
+                    <div className="text-center">
+                      <p
+                        className={cn(
+                          "text-sm font-semibold",
+                          hasAdmissions ? "text-white" : "text-gray-500",
+                        )}
+                      >
+                        {round.counseling_round}
+                      </p>
+                      {hasAdmissions && (
+                        <span className="mt-1 inline-block rounded bg-emerald-500/10 px-1.5 py-0.5 font-mono text-xs text-emerald-500">
+                          +{round.count} Admitted
+                        </span>
+                      )}
+                      {!hasAdmissions && (
+                        <p className="mt-0.5 text-xs text-gray-500">Pending</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );

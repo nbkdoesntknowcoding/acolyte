@@ -1,547 +1,675 @@
 "use client";
 
 import {
+  ArrowLeft,
   Plus,
-  Search,
+  Filter,
+  AlertTriangle,
+  CheckCircle,
   Pin,
-  GraduationCap,
-  Building,
   Users,
-  IdCard,
-  Settings,
-  Home,
-  SquarePen,
-  Gavel,
-  Shield,
-  Heart,
-  Brain,
-  MoreVertical,
-  Bold,
-  Italic,
-  List,
-  Paperclip,
-  Smartphone,
-  BellRing,
-  Mail,
-  BadgeCheck,
-  type LucideIcon,
+  Eye,
+  CheckCheck,
+  Send,
+  FileText,
 } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import type { NoticeCard, NoticeType, NoticePriority, NMCMandatoryNotice } from "@/types/admin";
-
-// ---------------------------------------------------------------------------
-// TODO: Replace with API call — GET /api/v1/admin/communications/notices
-// ---------------------------------------------------------------------------
-
-const TAG_ICONS: Record<string, LucideIcon> = {
-  school: GraduationCap,
-  domain: Building,
-  groups: Users,
-  badge: IdCard,
-  admin: Settings,
-  cottage: Home,
-};
-
-const TYPE_BADGE: Record<NoticeType, { label: string; classes: string }> = {
-  circular: {
-    label: "Circular",
-    classes: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  },
-  notice: {
-    label: "Notice",
-    classes: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  },
-  order: {
-    label: "Order",
-    classes: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-  },
-};
-
-const PRIORITY_BADGE: Record<
-  NoticePriority,
-  { label: string; classes: string; pulse?: boolean }
-> = {
-  urgent: {
-    label: "Urgent",
-    classes: "bg-red-500/10 text-red-400 border-red-500/20",
-    pulse: true,
-  },
-  important: {
-    label: "Important",
-    classes: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
-  },
-  normal: {
-    label: "Normal",
-    classes: "bg-gray-500/10 text-gray-400 border-gray-500/20",
-  },
-};
-
-const NOTICES: NoticeCard[] = [
-  {
-    id: "n1",
-    type: "circular",
-    priority: "urgent",
-    title: "Internal Assessment Schedule - Phase I MBBS",
-    excerpt:
-      "The first internal assessment for Phase I MBBS students (Batch 2023-24) is scheduled from Oct 15th to Oct 20th. Attendance is mandatory for all students.",
-    tags: [
-      { icon: "school", label: "Phase I Students" },
-      { icon: "domain", label: "Anatomy Dept" },
-    ],
-    author: {
-      initials: "AD",
-      role: "Academic Dean",
-      time: "2 hrs ago",
-      avatarBg: "bg-purple-500/20",
-      avatarText: "text-purple-400",
-      avatarBorder: "border-purple-500/30",
-    },
-    readCount: 234,
-    totalCount: 450,
-    readBarColor: "bg-emerald-500",
-    pinned: true,
-  },
-  {
-    id: "n2",
-    type: "notice",
-    priority: "important",
-    title: "Library Renovation Notice",
-    excerpt:
-      "The Central Library will remain closed for renovation from 20th Oct to 25th Oct. Digital library access will remain operational 24/7 via the portal.",
-    tags: [
-      { icon: "groups", label: "All Students" },
-      { icon: "badge", label: "Faculty" },
-    ],
-    author: {
-      initials: "LB",
-      role: "Librarian",
-      time: "Yesterday",
-      avatarBg: "bg-orange-500/20",
-      avatarText: "text-orange-400",
-      avatarBorder: "border-orange-500/30",
-    },
-    readCount: 890,
-    totalCount: 1200,
-    readBarColor: "bg-gray-500",
-  },
-  {
-    id: "n3",
-    type: "order",
-    title: "Reconstitution of Anti-Ragging Committee",
-    excerpt:
-      "By order of the Dean, the Anti-Ragging committee has been reconstituted for the academic year 2023-24. New members list attached.",
-    tags: [{ icon: "admin", label: "All Staff" }],
-    author: {
-      initials: "DE",
-      role: "Dean Office",
-      time: "2 days ago",
-      avatarBg: "bg-emerald-500/20",
-      avatarText: "text-emerald-500",
-      avatarBorder: "border-emerald-500/30",
-    },
-    readCount: 145,
-    totalCount: 200,
-    readBarColor: "bg-gray-500",
-  },
-  {
-    id: "n4",
-    type: "circular",
-    title: "Hostel Fee Payment Deadline Extended",
-    excerpt:
-      "Due to technical issues with the payment gateway, the deadline for hostel fee submission has been extended to Oct 30th without late fee.",
-    tags: [{ icon: "cottage", label: "Hostellers" }],
-    author: {
-      initials: "AC",
-      role: "Accounts",
-      time: "3 days ago",
-      avatarBg: "bg-teal-500/20",
-      avatarText: "text-teal-400",
-      avatarBorder: "border-teal-500/30",
-    },
-    readCount: 412,
-    totalCount: 500,
-    readBarColor: "bg-gray-500",
-  },
-];
-
-const NMC_MANDATORY: NMCMandatoryNotice[] = [
-  {
-    id: "nm1",
-    title: "Anti-Ragging",
-    lastNotice: "Last Notice: 15 days ago",
-    iconBg: "bg-red-500/10",
-    iconColor: "text-red-500",
-    iconBorder: "border-red-500/20",
-  },
-  {
-    id: "nm2",
-    title: "ICC (Gender)",
-    lastNotice: "Last Notice: 2 months ago",
-    iconBg: "bg-purple-500/10",
-    iconColor: "text-purple-500",
-    iconBorder: "border-purple-500/20",
-  },
-  {
-    id: "nm3",
-    title: "Student Grievance",
-    lastNotice: "Last Notice: 5 days ago",
-    iconBg: "bg-blue-500/10",
-    iconColor: "text-blue-500",
-    iconBorder: "border-blue-500/20",
-  },
-];
-
-const NMC_ICONS: Record<string, LucideIcon> = {
-  "Anti-Ragging": Shield,
-  "ICC (Gender)": Heart,
-  "Student Grievance": Brain,
-};
-
-// ---------------------------------------------------------------------------
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Progress } from "@/components/ui/progress";
+import Link from "next/link";
+import {
+  useNotices,
+  useCreateNotice,
+  usePublishNotice,
+  useNoticeAnalytics,
+} from "@/lib/hooks/admin/use-notices";
+import { LoadingState } from "@/components/admin/loading-state";
+import { ErrorState } from "@/components/admin/error-state";
+import { EmptyState } from "@/components/admin/empty-state";
 
 export default function NoticesPage() {
+  // Filters
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [selectedPriority, setSelectedPriority] = useState<string>("all");
+  const [selectedType, setSelectedType] = useState<string>("all");
+
+  // Create notice modal
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [noticeTitle, setNoticeTitle] = useState("");
+  const [noticeContent, setNoticeContent] = useState("");
+  const [noticeType, setNoticeType] = useState<string>("general");
+  const [noticePriority, setNoticePriority] = useState<string>("normal");
+  const [requiresAcknowledgment, setRequiresAcknowledgment] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
+  const [targetRoles, setTargetRoles] = useState<string[]>([]);
+  const [deliveryChannels, setDeliveryChannels] = useState<string[]>(["web"]);
+
+  // Analytics modal
+  const [analyticsModalOpen, setAnalyticsModalOpen] = useState(false);
+  const [selectedNoticeId, setSelectedNoticeId] = useState<string | null>(null);
+
+  // Success/Error banners
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Queries
+  const {
+    data: noticesData,
+    isLoading: noticesLoading,
+    error: noticesError,
+  } = useNotices({
+    status: selectedStatus !== "all" ? selectedStatus : undefined,
+    priority: selectedPriority !== "all" ? selectedPriority : undefined,
+    notice_type: selectedType !== "all" ? selectedType : undefined,
+    page_size: 100,
+  });
+
+  const {
+    data: analyticsData,
+    isLoading: analyticsLoading,
+    error: analyticsError,
+  } = useNoticeAnalytics(selectedNoticeId || "", {
+    enabled: !!selectedNoticeId && analyticsModalOpen,
+  });
+
+  // Mutations
+  const createNoticeMutation = useCreateNotice();
+  const publishNoticeMutation = usePublishNotice();
+
+  // Extract data
+  const notices = noticesData?.data ?? [];
+
+  // Handle create notice
+  const handleCreateNotice = async () => {
+    if (!noticeTitle || !noticeContent) {
+      setErrorMessage("Please fill in all required fields.");
+      return;
+    }
+
+    try {
+      await createNoticeMutation.mutateAsync({
+        title: noticeTitle,
+        content: noticeContent,
+        notice_type: noticeType,
+        priority: noticePriority,
+        requires_acknowledgment: requiresAcknowledgment,
+        is_pinned: isPinned,
+        target_audience: targetRoles.length > 0 ? { roles: targetRoles } : null,
+        delivery_channels: deliveryChannels,
+      });
+      setSuccessMessage("Notice created successfully as draft!");
+      setCreateModalOpen(false);
+      resetForm();
+    } catch (err: unknown) {
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to create notice."
+      );
+    }
+  };
+
+  // Handle publish notice
+  const handlePublishNotice = async (noticeId: string) => {
+    try {
+      await publishNoticeMutation.mutateAsync(noticeId);
+      setSuccessMessage("Notice published successfully!");
+    } catch (err: unknown) {
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to publish notice."
+      );
+    }
+  };
+
+  // Reset form
+  const resetForm = () => {
+    setNoticeTitle("");
+    setNoticeContent("");
+    setNoticeType("general");
+    setNoticePriority("normal");
+    setRequiresAcknowledgment(false);
+    setIsPinned(false);
+    setTargetRoles([]);
+    setDeliveryChannels(["web"]);
+  };
+
+  // Toggle role selection
+  const toggleRole = (role: string) => {
+    setTargetRoles((prev) =>
+      prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]
+    );
+  };
+
+  // Toggle channel selection
+  const toggleChannel = (channel: string) => {
+    setDeliveryChannels((prev) =>
+      prev.includes(channel)
+        ? prev.filter((c) => c !== channel)
+        : [...prev, channel]
+    );
+  };
+
+  // Open analytics
+  const openAnalytics = (noticeId: string) => {
+    setSelectedNoticeId(noticeId);
+    setAnalyticsModalOpen(true);
+  };
+
+  // Loading states
+  if (noticesLoading) {
+    return <LoadingState />;
+  }
+
+  // Error states
+  if (noticesError) {
+    return <ErrorState error={noticesError} />;
+  }
+
+  // Calculate read rate
+  const getReadRate = (notice: typeof notices[0]) => {
+    if (notice.total_recipients === 0) return 0;
+    return (notice.read_count / notice.total_recipients) * 100;
+  };
+
+  // Calculate acknowledgment rate
+  const getAcknowledgmentRate = (notice: typeof notices[0]) => {
+    if (notice.total_recipients === 0) return 0;
+    return (notice.acknowledged_count / notice.total_recipients) * 100;
+  };
+
   return (
-    <div className="flex h-[calc(100vh-64px)] flex-col overflow-hidden">
-      {/* Toolbar */}
-      <div className="flex h-14 shrink-0 items-center justify-between border-b border-dark-border bg-dark-surface px-6">
-        <nav className="flex items-center text-sm font-medium text-gray-400">
-          <span className="cursor-pointer hover:text-white">Communication</span>
-          <span className="mx-2 text-gray-600">/</span>
-          <span className="font-semibold text-white">
-            Notices &amp; Circulars
-          </span>
-        </nav>
-        <Button size="sm">
-          <Plus className="mr-1 h-4 w-4" /> Create Notice
+    <div className="space-y-6 p-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard/admin/communications">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold">Notice Board</h1>
+            <p className="text-muted-foreground">
+              Create and manage notices for students, faculty, and staff
+            </p>
+          </div>
+        </div>
+        <Button onClick={() => setCreateModalOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Create Notice
         </Button>
       </div>
 
-      {/* Scrollable Content */}
-      <div className="flex-1 overflow-auto p-6">
-        <div className="grid h-full grid-cols-12 gap-6">
-          {/* Left — Search + Notice Cards */}
-          <div className="col-span-12 space-y-6 xl:col-span-8">
-            {/* Search & Filters */}
-            <div className="flex flex-col items-center justify-between gap-4 rounded-xl border border-dark-border bg-dark-surface p-4 sm:flex-row">
-              <div className="relative w-full sm:w-80">
-                <Search className="absolute left-3 top-2.5 h-[18px] w-[18px] text-gray-500" />
-                <input
-                  type="text"
-                  placeholder="Search notices..."
-                  className="w-full rounded-lg border border-dark-border bg-[#262626] py-2 pl-10 pr-4 text-sm text-gray-200 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                />
-              </div>
-              <div className="flex w-full gap-2 sm:w-auto">
-                <select className="rounded-lg border border-dark-border bg-[#262626] px-3 py-2 text-xs text-gray-300 outline-none focus:ring-1 focus:ring-emerald-500">
-                  <option>All Types</option>
-                  <option>Circular</option>
-                  <option>Notice</option>
-                  <option>Order</option>
-                </select>
-                <select className="rounded-lg border border-dark-border bg-[#262626] px-3 py-2 text-xs text-gray-300 outline-none focus:ring-1 focus:ring-emerald-500">
-                  <option>Latest First</option>
-                  <option>Priority</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Notice Cards Grid */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {NOTICES.map((notice) => {
-                const typeBadge = TYPE_BADGE[notice.type];
-                const priorityBadge = notice.priority
-                  ? PRIORITY_BADGE[notice.priority]
-                  : null;
-                const readPct = Math.round(
-                  (notice.readCount / notice.totalCount) * 100,
-                );
-
-                return (
-                  <div
-                    key={notice.id}
-                    className="group relative rounded-xl border border-dark-border bg-dark-surface p-5 transition-colors hover:border-emerald-500/50"
-                  >
-                    {/* Pin */}
-                    <div
-                      className={cn(
-                        "absolute right-4 top-4 cursor-pointer transition-colors",
-                        notice.pinned
-                          ? "text-emerald-500"
-                          : "text-gray-600 hover:text-white",
-                      )}
-                    >
-                      <Pin className="h-[18px] w-[18px]" />
-                    </div>
-
-                    {/* Badges */}
-                    <div className="mb-3 flex gap-2">
-                      <span
-                        className={cn(
-                          "rounded border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-                          typeBadge.classes,
-                        )}
-                      >
-                        {typeBadge.label}
-                      </span>
-                      {priorityBadge && (
-                        <span
-                          className={cn(
-                            "flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-                            priorityBadge.classes,
-                          )}
-                        >
-                          {priorityBadge.pulse && (
-                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />
-                          )}
-                          {priorityBadge.label}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Title & Excerpt */}
-                    <h3 className="mb-2 pr-6 text-lg font-semibold leading-tight text-white">
-                      {notice.title}
-                    </h3>
-                    <p className="mb-4 line-clamp-2 text-xs text-gray-400">
-                      {notice.excerpt}
-                    </p>
-
-                    {/* Tags */}
-                    <div className="mb-4 flex flex-wrap gap-2">
-                      {notice.tags.map((tag) => {
-                        const TagIcon = TAG_ICONS[tag.icon] ?? Users;
-                        return (
-                          <span
-                            key={tag.label}
-                            className="inline-flex items-center gap-1 rounded-md border border-dark-border bg-[#262626] px-2 py-1 text-[10px] text-gray-300"
-                          >
-                            <TagIcon className="h-3 w-3" />
-                            {tag.label}
-                          </span>
-                        );
-                      })}
-                    </div>
-
-                    {/* Footer — Author + Read Progress */}
-                    <div className="flex items-center justify-between border-t border-dark-border pt-4">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={cn(
-                            "flex h-6 w-6 items-center justify-center rounded-full border text-[10px] font-bold",
-                            notice.author.avatarBg,
-                            notice.author.avatarText,
-                            notice.author.avatarBorder,
-                          )}
-                        >
-                          {notice.author.initials}
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-[10px] text-gray-300">
-                            {notice.author.role}
-                          </span>
-                          <span className="text-[10px] text-gray-500">
-                            {notice.author.time}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex w-24 flex-col items-end gap-1">
-                        <span
-                          className={cn(
-                            "text-[10px] font-medium",
-                            notice.readBarColor === "bg-emerald-500"
-                              ? "text-emerald-500"
-                              : "text-gray-400",
-                          )}
-                        >
-                          Read by {notice.readCount}/{notice.totalCount}
-                        </span>
-                        <div className="h-1 w-full rounded-full bg-[#262626]">
-                          <div
-                            className={cn(
-                              "h-1 rounded-full",
-                              notice.readBarColor,
-                            )}
-                            style={{ width: `${readPct}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Right Sidebar — Draft Form + NMC Mandatory */}
-          <div className="col-span-12 flex flex-col gap-6 xl:col-span-4">
-            {/* Draft New Notice */}
-            <div className="flex flex-col rounded-xl border border-dark-border bg-dark-surface p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="flex items-center gap-2 text-sm font-bold text-white">
-                  <SquarePen className="h-5 w-5 text-emerald-500" /> Draft New
-                  Notice
-                </h3>
-                <button className="text-xs font-medium text-emerald-500 hover:text-emerald-400">
-                  Full Editor
-                </button>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-400">
-                    Title
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter notice title"
-                    className="w-full rounded-lg border border-dark-border bg-[#262626] px-3 py-2 text-xs text-gray-200 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-400">
-                      Type
-                    </label>
-                    <select className="w-full rounded-lg border border-dark-border bg-[#262626] px-2 py-2 text-xs text-gray-200 outline-none focus:ring-1 focus:ring-emerald-500">
-                      <option>Notice</option>
-                      <option>Circular</option>
-                      <option>Order</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-400">
-                      Priority
-                    </label>
-                    <select className="w-full rounded-lg border border-dark-border bg-[#262626] px-2 py-2 text-xs text-gray-200 outline-none focus:ring-1 focus:ring-emerald-500">
-                      <option>Normal</option>
-                      <option>Important</option>
-                      <option>Urgent</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-400">
-                    Content
-                  </label>
-                  <div className="h-32 overflow-y-auto rounded-lg border border-dark-border bg-[#262626] p-2 text-xs text-gray-300 focus-within:ring-1 focus-within:ring-emerald-500">
-                    <div className="mb-2 flex gap-2 border-b border-dark-border pb-2 text-gray-500">
-                      <Bold className="h-4 w-4 cursor-pointer hover:text-white" />
-                      <Italic className="h-4 w-4 cursor-pointer hover:text-white" />
-                      <List className="h-4 w-4 cursor-pointer hover:text-white" />
-                      <Paperclip className="ml-auto h-4 w-4 cursor-pointer hover:text-white" />
-                    </div>
-                    <p className="opacity-50">
-                      Start typing your notice content here...
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-3 pt-2">
-                  <div>
-                    <label className="mb-2 block text-xs font-medium text-gray-400">
-                      Target Audience
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {["+ Add Batch", "+ Add Dept", "+ Add Role"].map(
-                        (chip) => (
-                          <span
-                            key={chip}
-                            className="cursor-pointer rounded border border-dark-border bg-[#262626] px-2 py-1 text-[10px] text-gray-300 transition-colors hover:border-emerald-500 hover:text-emerald-500"
-                          >
-                            {chip}
-                          </span>
-                        ),
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mt-2 flex items-center justify-between border-t border-dark-border py-2">
-                    <label className="flex cursor-pointer items-center gap-2">
-                      <div className="relative h-4 w-8 rounded-full bg-gray-700">
-                        <span className="absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-gray-500 transition-transform" />
-                      </div>
-                      <span className="text-xs text-gray-300">
-                        Req. Acknowledgment
-                      </span>
-                    </label>
-                    <div className="flex gap-2 text-gray-400">
-                      <span title="In-App">
-                        <Smartphone className="h-[18px] w-[18px] text-emerald-500" />
-                      </span>
-                      <span title="Push">
-                        <BellRing className="h-[18px] w-[18px] text-emerald-500" />
-                      </span>
-                      <span title="Email">
-                        <Mail className="h-[18px] w-[18px] cursor-pointer transition-colors hover:text-emerald-500" />
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <Button className="w-full shadow-lg shadow-emerald-900/20">
-                  Publish Notice
-                </Button>
-              </div>
-            </div>
-
-            {/* NMC Mandatory */}
-            <div className="flex flex-1 flex-col overflow-hidden rounded-xl border border-dark-border bg-dark-surface p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="flex items-center gap-2 text-sm font-bold text-white">
-                  <Gavel className="h-5 w-5 text-gray-400" /> NMC Mandatory
-                </h3>
-                <span className="flex items-center gap-1 rounded border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-[10px] font-bold text-emerald-500">
-                  <BadgeCheck className="h-3 w-3" /> AUDIT OK
-                </span>
-              </div>
-              <div className="flex-1 space-y-3 overflow-y-auto pr-1">
-                {NMC_MANDATORY.map((item) => {
-                  const ItemIcon = NMC_ICONS[item.title] ?? Shield;
-                  return (
-                    <div
-                      key={item.id}
-                      className="rounded-lg border border-dark-border bg-[#262626]/30 p-3 transition-colors hover:bg-[#262626]/50"
-                    >
-                      <div className="mb-2 flex items-center gap-3">
-                        <div
-                          className={cn(
-                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border",
-                            item.iconBg,
-                            item.iconBorder,
-                          )}
-                        >
-                          <ItemIcon
-                            className={cn("h-5 w-5", item.iconColor)}
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium leading-none text-gray-200">
-                            {item.title}
-                          </p>
-                          <p className="mt-1 text-[10px] text-gray-500">
-                            {item.lastNotice}
-                          </p>
-                        </div>
-                        <button className="text-gray-500 hover:text-white">
-                          <MoreVertical className="h-5 w-5" />
-                        </button>
-                      </div>
-                      <div className="flex gap-2">
-                        <button className="flex-1 rounded border border-dark-border bg-[#262626] py-1.5 text-[10px] text-gray-300 transition-colors hover:bg-dark-surface">
-                          View History
-                        </button>
-                        <button className="flex-1 rounded border border-dark-border bg-[#262626] py-1.5 text-[10px] text-emerald-500 transition-colors hover:bg-dark-surface">
-                          + Template
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+      {/* Success/Error Banners */}
+      {successMessage && (
+        <div className="flex items-center gap-2 rounded-md bg-emerald-50 p-4 text-emerald-900 dark:bg-emerald-900/20 dark:text-emerald-100">
+          <CheckCircle className="h-5 w-5" />
+          <p>{successMessage}</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSuccessMessage(null)}
+            className="ml-auto"
+          >
+            Dismiss
+          </Button>
         </div>
+      )}
+      {errorMessage && (
+        <div className="flex items-center gap-2 rounded-md bg-red-50 p-4 text-red-900 dark:bg-red-900/20 dark:text-red-100">
+          <AlertTriangle className="h-5 w-5" />
+          <p>{errorMessage}</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setErrorMessage(null)}
+            className="ml-auto"
+          >
+            Dismiss
+          </Button>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="flex gap-2">
+        <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+          <SelectTrigger className="w-40">
+            <Filter className="mr-2 h-4 w-4" />
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="draft">Draft</SelectItem>
+            <SelectItem value="published">Published</SelectItem>
+            <SelectItem value="expired">Expired</SelectItem>
+            <SelectItem value="archived">Archived</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={selectedPriority} onValueChange={setSelectedPriority}>
+          <SelectTrigger className="w-40">
+            <Filter className="mr-2 h-4 w-4" />
+            <SelectValue placeholder="Priority" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Priorities</SelectItem>
+            <SelectItem value="normal">Normal</SelectItem>
+            <SelectItem value="important">Important</SelectItem>
+            <SelectItem value="urgent">Urgent</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={selectedType} onValueChange={setSelectedType}>
+          <SelectTrigger className="w-40">
+            <Filter className="mr-2 h-4 w-4" />
+            <SelectValue placeholder="Type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            <SelectItem value="general">General</SelectItem>
+            <SelectItem value="academic">Academic</SelectItem>
+            <SelectItem value="exam">Exam</SelectItem>
+            <SelectItem value="event">Event</SelectItem>
+            <SelectItem value="administrative">Administrative</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
+
+      {/* Notice Cards */}
+      {notices.length === 0 ? (
+        <EmptyState
+          title="No notices found"
+          description="Create your first notice to get started."
+        />
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {notices.map((notice) => {
+            const readRate = getReadRate(notice);
+            const ackRate = getAcknowledgmentRate(notice);
+
+            return (
+              <Card
+                key={notice.id}
+                className={notice.is_pinned ? "border-emerald-500" : ""}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        {notice.is_pinned && (
+                          <Pin className="h-4 w-4 text-emerald-500" />
+                        )}
+                        {notice.title}
+                      </CardTitle>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {notice.posted_by_name || "Unknown"} •{" "}
+                        {notice.published_at
+                          ? new Date(notice.published_at).toLocaleDateString()
+                          : "Not published"}
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <Badge
+                        variant={
+                          notice.priority === "urgent"
+                            ? "destructive"
+                            : notice.priority === "important"
+                              ? "default"
+                              : "outline"
+                        }
+                      >
+                        {notice.priority}
+                      </Badge>
+                      <Badge
+                        variant={
+                          notice.status === "published"
+                            ? "default"
+                            : "outline"
+                        }
+                      >
+                        {notice.status}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm line-clamp-3">{notice.content}</p>
+
+                  {notice.notice_type && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <FileText className="h-3 w-3" />
+                      {notice.notice_type}
+                    </div>
+                  )}
+
+                  {/* Read Progress */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-1">
+                        <Eye className="h-3 w-3" />
+                        Read Rate
+                      </span>
+                      <span className="font-medium">
+                        {notice.read_count} / {notice.total_recipients} (
+                        {readRate.toFixed(0)}%)
+                      </span>
+                    </div>
+                    <Progress value={readRate} className="h-1.5" />
+                  </div>
+
+                  {/* Acknowledgment Progress (if required) */}
+                  {notice.requires_acknowledgment && (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="flex items-center gap-1">
+                          <CheckCheck className="h-3 w-3" />
+                          Acknowledgment
+                        </span>
+                        <span className="font-medium">
+                          {notice.acknowledged_count} /{" "}
+                          {notice.total_recipients} ({ackRate.toFixed(0)}%)
+                        </span>
+                      </div>
+                      <Progress value={ackRate} className="h-1.5" />
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex gap-2 pt-2">
+                    {notice.status === "draft" && (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => handlePublishNotice(notice.id)}
+                        className="flex-1"
+                      >
+                        <Send className="mr-1 h-3 w-3" />
+                        Publish
+                      </Button>
+                    )}
+                    {notice.status === "published" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openAnalytics(notice.id)}
+                        className="flex-1"
+                      >
+                        <Eye className="mr-1 h-3 w-3" />
+                        Analytics
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Create Notice Modal */}
+      <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create Notice</DialogTitle>
+            <DialogDescription>
+              Create a new notice. It will be saved as a draft until published.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="title">Title *</Label>
+              <Input
+                id="title"
+                placeholder="Notice title..."
+                value={noticeTitle}
+                onChange={(e) => setNoticeTitle(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="content">Content *</Label>
+              <Textarea
+                id="content"
+                placeholder="Notice content..."
+                value={noticeContent}
+                onChange={(e) => setNoticeContent(e.target.value)}
+                rows={6}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="type">Type</Label>
+                <Select value={noticeType} onValueChange={setNoticeType}>
+                  <SelectTrigger id="type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general">General</SelectItem>
+                    <SelectItem value="academic">Academic</SelectItem>
+                    <SelectItem value="exam">Exam</SelectItem>
+                    <SelectItem value="event">Event</SelectItem>
+                    <SelectItem value="administrative">
+                      Administrative
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="priority">Priority</Label>
+                <Select value={noticePriority} onValueChange={setNoticePriority}>
+                  <SelectTrigger id="priority">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="important">Important</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label className="mb-2 block">Target Audience (Roles)</Label>
+              <div className="flex flex-wrap gap-2">
+                {["student", "faculty", "hod", "admin", "staff"].map((role) => (
+                  <Button
+                    key={role}
+                    type="button"
+                    variant={targetRoles.includes(role) ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => toggleRole(role)}
+                  >
+                    <Users className="mr-1 h-3 w-3" />
+                    {role.charAt(0).toUpperCase() + role.slice(1)}
+                  </Button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Leave empty to target all users
+              </p>
+            </div>
+
+            <div>
+              <Label className="mb-2 block">Delivery Channels</Label>
+              <div className="flex flex-wrap gap-2">
+                {["web", "email", "sms"].map((channel) => (
+                  <Button
+                    key={channel}
+                    type="button"
+                    variant={
+                      deliveryChannels.includes(channel) ? "default" : "outline"
+                    }
+                    size="sm"
+                    onClick={() => toggleChannel(channel)}
+                  >
+                    {channel.toUpperCase()}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <Label htmlFor="requires-ack">Requires Acknowledgment</Label>
+              <Switch
+                id="requires-ack"
+                checked={requiresAcknowledgment}
+                onCheckedChange={setRequiresAcknowledgment}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <Label htmlFor="is-pinned">Pin to Top</Label>
+              <Switch
+                id="is-pinned"
+                checked={isPinned}
+                onCheckedChange={setIsPinned}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCreateModalOpen(false);
+                resetForm();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleCreateNotice}>Create as Draft</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Analytics Modal */}
+      <Dialog open={analyticsModalOpen} onOpenChange={setAnalyticsModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Notice Analytics</DialogTitle>
+            <DialogDescription>
+              View read and acknowledgment statistics for this notice.
+            </DialogDescription>
+          </DialogHeader>
+          {analyticsLoading ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              Loading analytics...
+            </div>
+          ) : analyticsError ? (
+            <div className="py-8 text-center text-sm text-red-600">
+              Failed to load analytics.
+            </div>
+          ) : analyticsData ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Total Recipients
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {analyticsData.total_recipients}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Read Count
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {analyticsData.read_count}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {analyticsData.total_recipients > 0
+                        ? (
+                            (analyticsData.read_count /
+                              analyticsData.total_recipients) *
+                            100
+                          ).toFixed(0)
+                        : 0}
+                      % read rate
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Acknowledged
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {analyticsData.acknowledged_count}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {analyticsData.total_recipients > 0
+                        ? (
+                            (analyticsData.acknowledged_count /
+                              analyticsData.total_recipients) *
+                            100
+                          ).toFixed(0)
+                        : 0}
+                      % acknowledged
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {analyticsData.read_by_role &&
+                Object.keys(analyticsData.read_by_role).length > 0 && (
+                  <div>
+                    <Label className="mb-2 block">Read by Role</Label>
+                    <div className="space-y-2">
+                      {Object.entries(analyticsData.read_by_role).map(
+                        ([role, count]) => (
+                          <div
+                            key={role}
+                            className="flex items-center justify-between text-sm"
+                          >
+                            <span className="capitalize">{role}</span>
+                            <Badge variant="outline">{count as number}</Badge>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </div>
+                )}
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAnalyticsModalOpen(false);
+                setSelectedNoticeId(null);
+              }}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -577,9 +577,19 @@ export interface FeeRefundResponse {
   original_amount_paid: number;
   refund_amount: number;
   deductions: number | null;
-  status: string;
+  deduction_breakdown: Record<string, unknown> | null;
+  bank_account_number_last4: string | null;
+  bank_ifsc: string | null;
+  bank_name: string | null;
+  account_holder_name: string | null;
+  status: 'requested' | 'approved' | 'processing' | 'completed' | 'rejected';
+  approved_by: string | null;
+  approved_at: string | null;
+  processed_at: string | null;
   neft_reference: string | null;
+  rejection_reason: string | null;
   expected_completion_date: string | null;
+  notes: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -876,9 +886,12 @@ export interface RecruitmentPositionResponse {
   qualification_required: string | null;
   experience_required_years: number | null;
   vacancies: number;
-  priority: string;
+  priority: 'low' | 'medium' | 'high' | 'critical';
   msr_impact: boolean;
-  status: string;
+  job_description: string | null;
+  salary_range_min: number | null;
+  salary_range_max: number | null;
+  status: 'draft' | 'open' | 'screening' | 'interview' | 'offered' | 'filled' | 'cancelled';
   posted_date: string | null;
   deadline: string | null;
   created_at: string;
@@ -893,11 +906,21 @@ export interface RecruitmentCandidateResponse {
   email: string | null;
   phone: string | null;
   current_organization: string | null;
+  current_designation: string | null;
   qualification: string | null;
   specialization: string | null;
   experience_years: number | null;
+  publications_count: number;
+  resume_url: string | null;
   nmc_eligible: boolean | null;
-  pipeline_stage: string;
+  nmc_eligibility_notes: string | null;
+  pipeline_stage: 'applied' | 'screening' | 'nmc_check' | 'interview' | 'offer' | 'joined' | 'rejected';
+  interview_date: string | null;
+  interview_notes: string | null;
+  offer_amount: number | null;
+  offer_date: string | null;
+  joining_date: string | null;
+  rejection_reason: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1962,29 +1985,8 @@ export interface ActionItemsResponse {
 }
 
 // ---------------------------------------------------------------------------
-// Recruitment
+// Recruitment (Create / Update)
 // ---------------------------------------------------------------------------
-
-export interface RecruitmentPositionResponse {
-  id: string;
-  college_id: string;
-  department_id: string;
-  designation: string;
-  specialization_required: string | null;
-  qualification_required: string | null;
-  experience_required_years: number | null;
-  vacancies: number;
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  msr_impact: boolean;
-  job_description: string | null;
-  salary_range_min: number | null; // paisa
-  salary_range_max: number | null; // paisa
-  status: 'draft' | 'open' | 'screening' | 'interview' | 'offered' | 'filled' | 'cancelled';
-  posted_date: string | null; // ISO date
-  deadline: string | null; // ISO date
-  created_at: string;
-  updated_at: string;
-}
 
 export interface RecruitmentPositionCreate {
   department_id: string;
@@ -1996,9 +1998,9 @@ export interface RecruitmentPositionCreate {
   priority?: 'low' | 'medium' | 'high' | 'critical';
   msr_impact?: boolean;
   job_description?: string;
-  salary_range_min?: number; // paisa
-  salary_range_max?: number; // paisa
-  deadline?: string; // ISO date
+  salary_range_min?: number;
+  salary_range_max?: number;
+  deadline?: string;
 }
 
 export interface RecruitmentPositionUpdate {
@@ -2006,34 +2008,7 @@ export interface RecruitmentPositionUpdate {
   vacancies?: number;
   priority?: 'low' | 'medium' | 'high' | 'critical';
   status?: 'draft' | 'open' | 'screening' | 'interview' | 'offered' | 'filled' | 'cancelled';
-  deadline?: string; // ISO date
-}
-
-export interface RecruitmentCandidateResponse {
-  id: string;
-  college_id: string;
-  position_id: string;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  current_organization: string | null;
-  current_designation: string | null;
-  qualification: string | null;
-  specialization: string | null;
-  experience_years: number | null;
-  publications_count: number;
-  resume_url: string | null;
-  nmc_eligible: boolean | null;
-  nmc_eligibility_notes: string | null;
-  pipeline_stage: 'applied' | 'screening' | 'nmc_check' | 'interview' | 'offer' | 'joined' | 'rejected';
-  interview_date: string | null; // ISO datetime
-  interview_notes: string | null;
-  offer_amount: number | null; // paisa
-  offer_date: string | null; // ISO date
-  joining_date: string | null; // ISO date
-  rejection_reason: string | null;
-  created_at: string;
-  updated_at: string;
+  deadline?: string;
 }
 
 export interface RecruitmentCandidateCreate {
@@ -2051,59 +2026,33 @@ export interface RecruitmentCandidateCreate {
 
 export interface RecruitmentCandidateUpdate {
   pipeline_stage?: 'applied' | 'screening' | 'nmc_check' | 'interview' | 'offer' | 'joined' | 'rejected';
-  interview_date?: string; // ISO datetime
+  interview_date?: string;
   interview_notes?: string;
   nmc_eligible?: boolean;
   nmc_eligibility_notes?: string;
-  offer_amount?: number; // paisa
-  offer_date?: string; // ISO date
-  joining_date?: string; // ISO date
+  offer_amount?: number;
+  offer_date?: string;
+  joining_date?: string;
   rejection_reason?: string;
 }
 
 // ---------------------------------------------------------------------------
-// Fee Refunds
+// Fee Refund (Create / Update)
 // ---------------------------------------------------------------------------
-
-export interface FeeRefundResponse {
-  id: string;
-  college_id: string;
-  student_id: string;
-  original_payment_id: string | null;
-  reason: string | null;
-  original_amount_paid: number; // paisa
-  refund_amount: number; // paisa
-  deductions: number | null; // paisa
-  deduction_breakdown: Record<string, unknown> | null;
-  bank_account_number_last4: string | null;
-  bank_ifsc: string | null;
-  bank_name: string | null;
-  account_holder_name: string | null;
-  status: 'requested' | 'approved' | 'processing' | 'completed' | 'rejected';
-  approved_by: string | null;
-  approved_at: string | null; // ISO datetime
-  processed_at: string | null; // ISO datetime
-  neft_reference: string | null;
-  rejection_reason: string | null;
-  expected_completion_date: string | null; // ISO date
-  notes: string | null;
-  created_at: string;
-  updated_at: string;
-}
 
 export interface FeeRefundCreate {
   student_id: string;
   original_payment_id?: string;
   reason?: 'withdrawal' | 'seat_upgrade' | 'excess_payment' | 'caution_deposit_return' | 'mcc_round_exit' | 'state_counseling_exit' | 'other';
-  original_amount_paid: number; // paisa
-  refund_amount: number; // paisa
-  deductions?: number; // paisa
+  original_amount_paid: number;
+  refund_amount: number;
+  deductions?: number;
   deduction_breakdown?: Record<string, unknown>;
   bank_account_number_last4?: string;
   bank_ifsc?: string;
   bank_name?: string;
   account_holder_name?: string;
-  expected_completion_date?: string; // ISO date
+  expected_completion_date?: string;
   notes?: string;
 }
 

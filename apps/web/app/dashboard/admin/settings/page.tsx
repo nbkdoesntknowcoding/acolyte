@@ -390,17 +390,31 @@ function CollegeProfileSection() {
 // Academic Configuration Section
 // ---------------------------------------------------------------------------
 
+interface AcademicConfig {
+  attendance_threshold_min?: number;
+  attendance_threshold_ia?: number;
+  attendance_max_condonation?: number;
+  teaching_weeks_per_year?: number;
+  working_days_per_week?: number;
+  academic_calendar_start?: string;
+  semesters_per_year?: number;
+  exam_pattern?: string;
+  timezone?: string;
+  languages?: string[];
+  [key: string]: string | number | boolean | string[] | undefined;
+}
+
 function AcademicConfigSection() {
   const { data: profile, isLoading, error } = useCollegeProfile();
   const updateMutation = useUpdateCollegeProfile();
 
-  const [config, setConfig] = useState<Record<string, any>>({});
+  const [config, setConfig] = useState<AcademicConfig>({});
   const [isEditing, setIsEditing] = useState(false);
 
   // Sync config when profile loads
   useMemo(() => {
     if (profile?.config && !isEditing) {
-      setConfig(profile.config);
+      setConfig(profile.config as AcademicConfig);
     }
   }, [profile, isEditing]);
 
@@ -455,7 +469,7 @@ function AcademicConfigSection() {
             <Button
               onClick={() => {
                 setIsEditing(false);
-                if (profile?.config) setConfig(profile.config);
+                if (profile?.config) setConfig(profile.config as AcademicConfig);
               }}
               variant="outline"
               size="sm"

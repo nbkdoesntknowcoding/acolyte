@@ -1,19 +1,20 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import {
   Building2,
   Users,
   BedDouble,
   ShieldCheck,
   MoreVertical,
-  Wrench,
-  Croissant,
-  UtensilsCrossed,
-  CookingPot,
-  Receipt,
   IdCard,
   Ambulance,
   Bus,
+  Search,
+  X,
+  AlertTriangle,
+  Check,
+  UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,156 +26,187 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import {
+  useHostelBlocks,
+  useHostelRooms,
+  useHostelAllocations,
+  useHostelOccupancy,
+  useHostelNMCCompliance,
+  useAllocateStudent,
+} from "@/lib/hooks/admin/use-hostel";
+import { useStudents } from "@/lib/hooks/admin/use-students";
+import { useFaculty } from "@/lib/hooks/admin/use-faculty";
 import type {
-  HostelRoom,
-  HostelRoomStatus,
-  HostelAllocationRow,
-  MessMealCount,
-  DutyRosterEntry,
-} from "@/types/admin";
+  HostelRoomResponse,
+  HostelBlockResponse,
+} from "@/types/admin-api";
 
 // ---------------------------------------------------------------------------
-// TODO: Replace with API call — GET /api/v1/admin/facilities/hostel
+// Constants
 // ---------------------------------------------------------------------------
 
-const STAT_CARDS = [
-  {
-    label: "Total Capacity",
-    value: "680",
-    icon: Building2,
-    iconColor: "text-blue-500",
-    iconBg: "bg-blue-500/10",
-  },
-  {
-    label: "Occupied",
-    value: "612",
-    extra: "(90%)",
-    extraColor: "text-emerald-500",
-    icon: Users,
-    iconColor: "text-emerald-500",
-    iconBg: "bg-emerald-500/10",
-  },
-  {
-    label: "Available",
-    value: "68",
-    icon: BedDouble,
-    iconColor: "text-orange-500",
-    iconBg: "bg-orange-500/10",
-  },
-];
-
-const HOSTEL_TABS = [
-  "Boys Hostel 1 (UG)",
-  "Boys Hostel 2 (PG)",
-  "Girls Hostel 1 (UG)",
-  "Freshers Block",
-];
-
-const ROOM_STATUS_CLASSES: Record<HostelRoomStatus, string> = {
-  occupied:
-    "bg-blue-600/20 border border-blue-600/40 text-blue-400 hover:bg-blue-600/30",
+const ROOM_STATUS_CLASSES: Record<string, string> = {
   available:
     "bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20",
+  full: "bg-blue-600/20 border border-blue-600/40 text-blue-400 hover:bg-blue-600/30",
   maintenance:
     "bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/20",
+  reserved:
+    "bg-purple-500/10 border border-purple-500/30 text-purple-400 hover:bg-purple-500/20",
 };
 
-const ROOMS: HostelRoom[] = [
-  { number: "101", status: "occupied" },
-  { number: "102", status: "occupied" },
-  { number: "103", status: "occupied" },
-  { number: "104", status: "occupied" },
-  { number: "105", status: "available" },
-  { number: "106", status: "available" },
-  { number: "107", status: "maintenance", tooltip: "Leaking tap" },
-  { number: "108", status: "occupied" },
-  { number: "109", status: "occupied" },
-  { number: "110", status: "occupied" },
-  { number: "111", status: "occupied" },
-  { number: "112", status: "occupied" },
-];
-
-const ALLOCATIONS: HostelAllocationRow[] = [
-  {
-    roomNo: "101",
-    block: "Boys H1 (UG)",
-    occupants: [
-      { name: "Arjun Singh", program: "MBBS-I" },
-      { name: "Rahul Verma", program: "MBBS-I" },
-    ],
-    status: "occupied",
-  },
-  {
-    roomNo: "105",
-    block: "Boys H1 (UG)",
-    occupants: [],
-    status: "available",
-  },
-  {
-    roomNo: "107",
-    block: "Boys H1 (UG)",
-    occupants: [],
-    status: "maintenance",
-  },
-];
-
-const ALLOCATION_STATUS_BADGE: Record<
-  HostelRoomStatus,
-  { label: string; classes: string }
-> = {
-  occupied: {
-    label: "Occupied",
-    classes: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  },
+const STATUS_BADGE: Record<string, { label: string; classes: string }> = {
   available: {
     label: "Available",
     classes: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  },
+  full: {
+    label: "Full",
+    classes: "bg-blue-500/10 text-blue-400 border-blue-500/20",
   },
   maintenance: {
     label: "Maintenance",
     classes: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
   },
+  reserved: {
+    label: "Reserved",
+    classes: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+  },
 };
 
-const MEALS: MessMealCount[] = [
-  {
-    id: "m1",
-    meal: "Breakfast",
-    menu: "Idli & Sambar",
-    count: 580,
-    status: "consumed",
-  },
-  {
-    id: "m2",
-    meal: "Lunch (Live)",
-    menu: "Rice, Dal, Veg",
-    count: 342,
-    status: "live",
-  },
-  {
-    id: "m3",
-    meal: "Dinner",
-    menu: "Chapati & Paneer",
-    count: null,
-    status: "upcoming",
-  },
-];
-
-const MEAL_ICON_MAP: Record<string, { icon: typeof Croissant; color: string; bg: string }> = {
-  Breakfast: { icon: Croissant, color: "text-orange-400", bg: "bg-orange-400/10" },
-  "Lunch (Live)": { icon: UtensilsCrossed, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-  Dinner: { icon: CookingPot, color: "text-blue-400", bg: "bg-blue-400/10" },
-};
-
-const DUTY_ROSTER: DutyRosterEntry[] = [
-  { shift: "Day (8-4)", warden: "Dr. Rao", contact: "Ext 201" },
-  { shift: "Eve (4-12)", warden: "Mr. Das", contact: "Ext 202" },
-  { shift: "Night (12-8)", warden: "Mr. Khan", contact: "Ext 203" },
-];
-
+// ---------------------------------------------------------------------------
+// Page
 // ---------------------------------------------------------------------------
 
 export default function HostelMessPage() {
+  const [selectedBlockId, setSelectedBlockId] = useState<string>("");
+  const [selectedFloor, setSelectedFloor] = useState<number | "all">("all");
+  const [allocateOpen, setAllocateOpen] = useState(false);
+  const [allocateRoomId, setAllocateRoomId] = useState<string>("");
+  const [studentSearch, setStudentSearch] = useState("");
+  const [selectedStudentId, setSelectedStudentId] = useState("");
+  const [banner, setBanner] = useState<{
+    type: "success" | "error";
+    msg: string;
+  } | null>(null);
+
+  // -- Data -----------------------------------------------------------------
+
+  const { data: blocksData, isLoading: blocksLoading } = useHostelBlocks({
+    page_size: 50,
+    is_active: true,
+  });
+  const blocks = useMemo(() => blocksData?.data ?? [], [blocksData?.data]);
+
+  // Auto-select first block
+  const activeBlockId = selectedBlockId || blocks[0]?.id || "";
+
+  const { data: roomsData, isLoading: roomsLoading } = useHostelRooms(
+    { block_id: activeBlockId, page_size: 200 },
+    { enabled: !!activeBlockId },
+  );
+  const rooms = useMemo(() => roomsData?.data ?? [], [roomsData?.data]);
+
+  const { data: occupancy } = useHostelOccupancy();
+  const { data: nmcCompliance } = useHostelNMCCompliance();
+
+  const { data: allocationsData } = useHostelAllocations({
+    block_id: activeBlockId || undefined,
+    status: "active",
+    page_size: 50,
+  });
+  const allocations = allocationsData?.data ?? [];
+
+  const { data: facultyData } = useFaculty({ page_size: 500 });
+
+  // Student search for allocate modal
+  const { data: searchResults } = useStudents(
+    { search: studentSearch, page_size: 10 },
+    { enabled: studentSearch.length >= 2 },
+  );
+
+  const allocate = useAllocateStudent();
+
+  // -- Computed -------------------------------------------------------------
+
+  const facultyMap = useMemo(() => {
+    const m = new Map<string, string>();
+    facultyData?.data?.forEach((f) => m.set(f.id, f.name));
+    return m;
+  }, [facultyData]);
+
+  const studentMap = useMemo(() => {
+    const m = new Map<string, string>();
+    searchResults?.data?.forEach((s) => m.set(s.id, s.name));
+    return m;
+  }, [searchResults]);
+
+  // Occupancy totals
+  const totalCapacity = occupancy?.reduce((s, b) => s + b.total_beds, 0) ?? 0;
+  const totalOccupied = occupancy?.reduce((s, b) => s + b.occupied, 0) ?? 0;
+  const totalAvailable = occupancy?.reduce((s, b) => s + b.available, 0) ?? 0;
+  const occupancyPct =
+    totalCapacity > 0 ? Math.round((totalOccupied / totalCapacity) * 100) : 0;
+
+  // Floors for selected block
+  const floors = useMemo(() => {
+    const s = new Set<number>();
+    rooms.forEach((r) => s.add(r.floor));
+    return Array.from(s).sort((a, b) => a - b);
+  }, [rooms]);
+
+  // Filtered rooms by floor
+  const filteredRooms =
+    selectedFloor === "all"
+      ? rooms
+      : rooms.filter((r) => r.floor === selectedFloor);
+
+  // Room map for allocation table
+  const roomMap = useMemo(() => {
+    const m = new Map<string, HostelRoomResponse>();
+    rooms.forEach((r) => m.set(r.id, r));
+    return m;
+  }, [rooms]);
+
+  // Block map for names
+  const blockMap = useMemo(() => {
+    const m = new Map<string, HostelBlockResponse>();
+    blocks.forEach((b) => m.set(b.id, b));
+    return m;
+  }, [blocks]);
+
+  // Active block
+  const activeBlock = blockMap.get(activeBlockId);
+
+  // -- Handlers -------------------------------------------------------------
+
+  function openAllocateModal(roomId?: string) {
+    setAllocateRoomId(roomId ?? "");
+    setSelectedStudentId("");
+    setStudentSearch("");
+    setAllocateOpen(true);
+  }
+
+  async function handleAllocate() {
+    if (!selectedStudentId || !allocateRoomId || !activeBlockId) return;
+    setBanner(null);
+    try {
+      await allocate.mutateAsync({
+        student_id: selectedStudentId,
+        room_id: allocateRoomId,
+        block_id: activeBlockId,
+      });
+      setBanner({ type: "success", msg: "Student allocated successfully." });
+      setAllocateOpen(false);
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Failed to allocate student.";
+      setBanner({ type: "error", msg });
+    }
+  }
+
+  // -- Render ---------------------------------------------------------------
+
   return (
     <div className="flex h-[calc(100vh-64px)] flex-col overflow-hidden">
       {/* Toolbar */}
@@ -189,88 +221,160 @@ export default function HostelMessPage() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
-          <div className="flex items-center rounded-lg border border-dark-border bg-dark-surface p-1">
-            <button className="flex items-center gap-2 rounded bg-[#262626] px-3 py-1.5 text-xs font-medium text-white shadow-sm">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
-              Live
-            </button>
-            <button className="rounded px-3 py-1.5 text-xs font-medium text-gray-400 transition-colors hover:text-white">
-              Archive
-            </button>
-          </div>
+          <Button size="sm" onClick={() => openAllocateModal()}>
+            <UserPlus className="mr-2 h-4 w-4" /> Allocate Student
+          </Button>
         </div>
       </div>
+
+      {/* Banner */}
+      {banner && (
+        <div
+          className={cn(
+            "px-6 py-2 text-sm",
+            banner.type === "success"
+              ? "bg-emerald-500/10 text-emerald-400"
+              : "bg-red-500/10 text-red-400",
+          )}
+        >
+          {banner.msg}
+          <button
+            className="ml-4 underline"
+            onClick={() => setBanner(null)}
+          >
+            dismiss
+          </button>
+        </div>
+      )}
 
       {/* Scrollable Content */}
       <div className="flex-1 space-y-6 overflow-auto p-6">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {STAT_CARDS.map((card) => (
-            <div
-              key={card.label}
-              className="flex items-center justify-between rounded-xl border border-dark-border bg-dark-surface p-4"
-            >
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                  {card.label}
+          <div className="flex items-center justify-between rounded-xl border border-dark-border bg-dark-surface p-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                Total Capacity
+              </p>
+              <p className="mt-1 text-2xl font-bold text-white">
+                {totalCapacity}
+              </p>
+            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10">
+              <Building2 className="h-5 w-5 text-blue-500" />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between rounded-xl border border-dark-border bg-dark-surface p-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                Occupied
+              </p>
+              <div className="mt-1 flex items-baseline gap-2">
+                <p className="text-2xl font-bold text-white">
+                  {totalOccupied}
                 </p>
-                <div className="mt-1 flex items-baseline gap-2">
-                  <p className="text-2xl font-bold text-white">{card.value}</p>
-                  {card.extra && (
-                    <span className={cn("text-sm font-medium", card.extraColor)}>
-                      {card.extra}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div
-                className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-full",
-                  card.iconBg,
-                )}
-              >
-                <card.icon className={cn("h-5 w-5", card.iconColor)} />
+                <span className="text-sm font-medium text-emerald-500">
+                  ({occupancyPct}%)
+                </span>
               </div>
             </div>
-          ))}
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10">
+              <Users className="h-5 w-5 text-emerald-500" />
+            </div>
+          </div>
 
-          {/* Compliance card */}
+          <div className="flex items-center justify-between rounded-xl border border-dark-border bg-dark-surface p-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                Available
+              </p>
+              <p className="mt-1 text-2xl font-bold text-white">
+                {totalAvailable}
+              </p>
+            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-500/10">
+              <BedDouble className="h-5 w-5 text-orange-500" />
+            </div>
+          </div>
+
+          {/* NMC Compliance card */}
           <div className="group relative flex items-center justify-between overflow-hidden rounded-xl border border-dark-border bg-dark-surface p-4">
-            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-transparent" />
+            <div
+              className={cn(
+                "absolute inset-0",
+                nmcCompliance?.compliant
+                  ? "bg-gradient-to-r from-emerald-500/5 to-transparent"
+                  : "bg-gradient-to-r from-red-500/5 to-transparent",
+              )}
+            />
             <div className="relative z-10">
               <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
                 Compliance
               </p>
               <div className="mt-1 flex items-center gap-2">
-                <p className="text-xl font-bold text-white">NMC Compliant</p>
-                <ShieldCheck className="h-5 w-5 text-emerald-500" />
+                {nmcCompliance ? (
+                  <>
+                    <p className="text-xl font-bold text-white">
+                      {nmcCompliance.compliant
+                        ? "NMC Compliant"
+                        : "Non-Compliant"}
+                    </p>
+                    {nmcCompliance.compliant ? (
+                      <ShieldCheck className="h-5 w-5 text-emerald-500" />
+                    ) : (
+                      <AlertTriangle className="h-5 w-5 text-red-500" />
+                    )}
+                  </>
+                ) : (
+                  <p className="text-xl font-bold text-gray-500">Loading…</p>
+                )}
               </div>
+              {nmcCompliance && !nmcCompliance.compliant && (
+                <p className="mt-1 text-xs text-red-400">
+                  {nmcCompliance.message}
+                </p>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Main 12-Col Grid */}
+        {/* Main Grid */}
         <div className="grid grid-cols-12 gap-6">
           {/* Left — Room Grid + Allocations Table */}
           <div className="col-span-12 space-y-6 xl:col-span-8">
             {/* Room Grid */}
             <div className="overflow-hidden rounded-xl border border-dark-border bg-dark-surface">
-              {/* Hostel Tabs + Legend */}
+              {/* Block Tabs + Legend */}
               <div className="flex items-center justify-between border-b border-dark-border bg-[#262626]/30 px-4 pt-3">
-                <div className="flex gap-4">
-                  {HOSTEL_TABS.map((tab, i) => (
-                    <button
-                      key={tab}
-                      className={cn(
-                        "border-b-2 px-2 pb-3 text-sm font-medium transition-colors",
-                        i === 0
-                          ? "border-emerald-500 text-white"
-                          : "border-transparent text-gray-400 hover:text-gray-300",
-                      )}
-                    >
-                      {tab}
-                    </button>
-                  ))}
+                <div className="flex gap-4 overflow-x-auto">
+                  {blocksLoading ? (
+                    <span className="pb-3 text-sm text-gray-500">
+                      Loading blocks…
+                    </span>
+                  ) : blocks.length === 0 ? (
+                    <span className="pb-3 text-sm text-gray-500">
+                      No hostel blocks found
+                    </span>
+                  ) : (
+                    blocks.map((block) => (
+                      <button
+                        key={block.id}
+                        onClick={() => {
+                          setSelectedBlockId(block.id);
+                          setSelectedFloor("all");
+                        }}
+                        className={cn(
+                          "whitespace-nowrap border-b-2 px-2 pb-3 text-sm font-medium transition-colors",
+                          activeBlockId === block.id
+                            ? "border-emerald-500 text-white"
+                            : "border-transparent text-gray-400 hover:text-gray-300",
+                        )}
+                      >
+                        {block.name}
+                      </button>
+                    ))
+                  )}
                 </div>
                 <div className="flex items-center gap-2 pb-2">
                   <span className="flex items-center gap-1.5 text-xs text-gray-400">
@@ -279,7 +383,7 @@ export default function HostelMessPage() {
                   </span>
                   <span className="flex items-center gap-1.5 text-xs text-gray-400">
                     <span className="h-2.5 w-2.5 rounded-sm bg-blue-600" />
-                    Occupied
+                    Full
                   </span>
                   <span className="flex items-center gap-1.5 text-xs text-gray-400">
                     <span className="h-2.5 w-2.5 rounded-sm bg-yellow-500" />
@@ -292,233 +396,312 @@ export default function HostelMessPage() {
               <div className="p-6">
                 <div className="mb-4 flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-gray-300">
-                    Floor 1 - Wing A
+                    {activeBlock?.name ?? "Rooms"}
+                    {selectedFloor !== "all" && ` — Floor ${selectedFloor}`}
                   </h3>
-                  <select className="rounded border border-dark-border bg-[#262626] px-2 py-1 text-xs text-gray-300 focus:border-emerald-500 focus:outline-none">
-                    <option>Floor 1</option>
-                    <option>Floor 2</option>
-                    <option>Floor 3</option>
-                  </select>
-                </div>
-                <div
-                  className="grid gap-2"
-                  style={{
-                    gridTemplateColumns:
-                      "repeat(auto-fill, minmax(60px, 1fr))",
-                  }}
-                >
-                  {ROOMS.map((room) => (
-                    <div
-                      key={room.number}
-                      title={room.tooltip}
-                      className={cn(
-                        "flex aspect-square cursor-pointer items-center justify-center rounded text-xs font-medium",
-                        ROOM_STATUS_CLASSES[room.status],
-                      )}
+                  <div className="flex items-center gap-3">
+                    {activeBlock && (
+                      <span className="text-xs text-gray-500">
+                        Warden:{" "}
+                        {activeBlock.warden_faculty_id
+                          ? (facultyMap.get(activeBlock.warden_faculty_id) ??
+                            "—")
+                          : "—"}
+                      </span>
+                    )}
+                    <select
+                      value={String(selectedFloor)}
+                      onChange={(e) =>
+                        setSelectedFloor(
+                          e.target.value === "all"
+                            ? "all"
+                            : Number(e.target.value),
+                        )
+                      }
+                      className="rounded border border-dark-border bg-[#262626] px-2 py-1 text-xs text-gray-300 focus:border-emerald-500 focus:outline-none"
                     >
-                      {room.number}
-                    </div>
-                  ))}
+                      <option value="all">All Floors</option>
+                      {floors.map((f) => (
+                        <option key={f} value={f}>
+                          Floor {f}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
+
+                {roomsLoading ? (
+                  <p className="py-8 text-center text-sm text-gray-500">
+                    Loading rooms…
+                  </p>
+                ) : filteredRooms.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-gray-500">
+                    No rooms found
+                  </p>
+                ) : (
+                  <div
+                    className="grid gap-2"
+                    style={{
+                      gridTemplateColumns:
+                        "repeat(auto-fill, minmax(70px, 1fr))",
+                    }}
+                  >
+                    {filteredRooms.map((room) => (
+                      <div
+                        key={room.id}
+                        onClick={() => {
+                          if (room.status === "available") {
+                            openAllocateModal(room.id);
+                          }
+                        }}
+                        title={`${room.room_number} — ${room.status} (${room.current_occupancy}/${room.capacity})`}
+                        className={cn(
+                          "flex aspect-square cursor-pointer flex-col items-center justify-center rounded text-xs font-medium",
+                          ROOM_STATUS_CLASSES[room.status] ??
+                            ROOM_STATUS_CLASSES.available,
+                        )}
+                      >
+                        <span>{room.room_number}</span>
+                        <span className="text-[9px] opacity-70">
+                          {room.current_occupancy}/{room.capacity}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Recent Allocations & Status */}
+            {/* Allocations Table */}
             <div className="overflow-hidden rounded-xl border border-dark-border bg-dark-surface">
               <div className="flex items-center justify-between border-b border-dark-border px-6 py-4">
                 <h3 className="text-sm font-bold text-white">
-                  Recent Allocations &amp; Status
+                  Active Allocations
                 </h3>
-                <button className="text-xs font-medium text-emerald-500 hover:text-emerald-400">
-                  View All
-                </button>
+                <span className="text-xs text-gray-500">
+                  {allocations.length} active
+                </span>
               </div>
               <Table>
                 <TableHeader>
                   <TableRow className="border-dark-border bg-[#262626]">
-                    <TableHead className="text-gray-500">Room No</TableHead>
+                    <TableHead className="text-gray-500">Room</TableHead>
                     <TableHead className="text-gray-500">Block</TableHead>
-                    <TableHead className="text-gray-500">Occupants</TableHead>
-                    <TableHead className="text-gray-500">Status</TableHead>
+                    <TableHead className="text-gray-500">Student</TableHead>
+                    <TableHead className="text-gray-500">Check-in</TableHead>
+                    <TableHead className="text-gray-500">
+                      Room Status
+                    </TableHead>
                     <TableHead className="text-right text-gray-500">
                       Action
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {ALLOCATIONS.map((row) => {
-                    const badge = ALLOCATION_STATUS_BADGE[row.status];
-                    return (
-                      <TableRow
-                        key={row.roomNo}
-                        className="border-dark-border transition-colors hover:bg-[#262626]/50"
+                  {allocations.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={6}
+                        className="py-8 text-center text-gray-500"
                       >
-                        <TableCell className="font-medium text-white">
-                          {row.roomNo}
-                        </TableCell>
-                        <TableCell>{row.block}</TableCell>
-                        <TableCell>
-                          {row.occupants.length > 0 ? (
-                            <div className="flex flex-col gap-1">
-                              {row.occupants.map((o) => (
-                                <span
-                                  key={o.name}
-                                  className="cursor-pointer text-emerald-500 hover:underline"
-                                >
-                                  {o.name} ({o.program})
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="italic text-gray-600">None</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <span
-                            className={cn(
-                              "rounded border px-2 py-0.5 text-xs",
-                              badge.classes,
-                            )}
-                          >
-                            {badge.label}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {row.status === "available" ? (
-                            <button className="rounded bg-[#262626] px-2 py-1 text-xs text-white transition-colors hover:bg-gray-700">
-                              Allocate
-                            </button>
-                          ) : row.status === "maintenance" ? (
-                            <button className="text-gray-500 hover:text-white">
-                              <Wrench className="h-4 w-4" />
-                            </button>
-                          ) : (
+                        No active allocations
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    allocations.map((alloc) => {
+                      const room = roomMap.get(alloc.room_id);
+                      const blk = blockMap.get(alloc.block_id);
+                      const roomStatus = room?.status ?? "available";
+                      const badge =
+                        STATUS_BADGE[roomStatus] ?? STATUS_BADGE.available;
+
+                      return (
+                        <TableRow
+                          key={alloc.id}
+                          className="border-dark-border transition-colors hover:bg-[#262626]/50"
+                        >
+                          <TableCell className="font-medium text-white">
+                            {room?.room_number ?? "—"}
+                          </TableCell>
+                          <TableCell>{blk?.name ?? "—"}</TableCell>
+                          <TableCell className="text-emerald-500">
+                            {alloc.student_id.slice(0, 8)}…
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {alloc.check_in_date
+                              ? new Date(
+                                  alloc.check_in_date,
+                                ).toLocaleDateString("en-IN", {
+                                  month: "short",
+                                  day: "2-digit",
+                                  year: "numeric",
+                                })
+                              : "—"}
+                          </TableCell>
+                          <TableCell>
+                            <span
+                              className={cn(
+                                "rounded border px-2 py-0.5 text-xs",
+                                badge.classes,
+                              )}
+                            >
+                              {badge.label}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
                             <button className="text-gray-500 hover:text-white">
                               <MoreVertical className="h-4 w-4" />
                             </button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
                 </TableBody>
               </Table>
             </div>
           </div>
 
-          {/* Right Sidebar — Mess + Duty + Transport */}
+          {/* Right Sidebar — Block Occupancy + Details */}
           <div className="col-span-12 space-y-6 xl:col-span-4">
-            {/* Today's Mess Count */}
+            {/* Block Occupancy Breakdown */}
             <div className="rounded-xl border border-dark-border bg-dark-surface p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-sm font-bold text-white">
-                  Today&apos;s Mess Count
-                </h3>
-                <span className="text-xs text-gray-500">24 Oct, 2023</span>
-              </div>
+              <h3 className="mb-4 text-sm font-bold text-white">
+                Block Occupancy
+              </h3>
               <div className="space-y-3">
-                {MEALS.map((meal) => {
-                  const mealStyle = MEAL_ICON_MAP[meal.meal];
-                  const MealIcon = mealStyle?.icon ?? UtensilsCrossed;
-                  const isLive = meal.status === "live";
-                  const isUpcoming = meal.status === "upcoming";
-
+                {(occupancy ?? []).map((block) => {
+                  const pct = block.occupancy_percentage;
+                  const barColor =
+                    pct >= 90
+                      ? "bg-red-500"
+                      : pct >= 75
+                        ? "bg-yellow-500"
+                        : "bg-emerald-500";
                   return (
-                    <div
-                      key={meal.id}
-                      className={cn(
-                        "relative flex items-center justify-between rounded-lg border border-dark-border bg-[#262626]/50 p-3",
-                        isUpcoming && "opacity-70",
-                      )}
-                    >
-                      {isLive && (
-                        <div className="absolute bottom-0 left-0 top-0 w-1 rounded-l bg-emerald-500" />
-                      )}
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={cn(
-                            "rounded-lg p-1.5",
-                            mealStyle?.bg ?? "bg-gray-500/10",
-                          )}
-                        >
-                          <MealIcon
-                            className={cn(
-                              "h-5 w-5",
-                              mealStyle?.color ?? "text-gray-400",
-                            )}
-                          />
-                        </div>
-                        <div>
-                          <p className="text-xs uppercase text-gray-400">
-                            {meal.meal}
-                          </p>
-                          <p className="text-sm font-semibold text-white">
-                            {meal.menu}
-                          </p>
-                        </div>
+                    <div key={block.block_id}>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium text-white">
+                          {block.block_name}
+                        </span>
+                        <span className="text-gray-400">
+                          {block.occupied}/{block.total_beds} (
+                          {Math.round(pct)}%)
+                        </span>
                       </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold text-white">
-                          {meal.count ?? "--"}
-                        </p>
-                        <p
-                          className={cn(
-                            "text-[10px]",
-                            meal.status === "consumed" && "text-green-500",
-                            meal.status === "live" && "text-emerald-500",
-                            meal.status === "upcoming" && "text-gray-500",
-                          )}
-                        >
-                          {meal.status === "consumed"
-                            ? "Consumed"
-                            : meal.status === "live"
-                              ? "Scanning..."
-                              : "Upcoming"}
-                        </p>
+                      <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-700">
+                        <div
+                          className={cn("h-full rounded-full", barColor)}
+                          style={{ width: `${Math.min(pct, 100)}%` }}
+                        />
                       </div>
                     </div>
                   );
                 })}
               </div>
-              <Button className="mt-4 w-full shadow-lg shadow-emerald-500/20">
-                <Receipt className="mr-2 h-4 w-4" /> Generate Mess Billing
-              </Button>
             </div>
 
-            {/* Duty Roster */}
-            <div className="rounded-xl border border-dark-border bg-dark-surface p-5">
-              <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-white">
-                <IdCard className="h-5 w-5 text-gray-400" /> Duty Roster
-              </h3>
-              <div className="overflow-hidden rounded-lg border border-dark-border">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-[#262626] font-semibold text-gray-500">
-                    <tr>
-                      <th className="px-3 py-2">Shift</th>
-                      <th className="px-3 py-2">Warden</th>
-                      <th className="px-3 py-2">Contact</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-dark-border bg-dark-surface">
-                    {DUTY_ROSTER.map((entry) => (
-                      <tr key={entry.shift}>
-                        <td className="px-3 py-2 text-gray-400">
-                          {entry.shift}
-                        </td>
-                        <td className="px-3 py-2 text-white">
-                          {entry.warden}
-                        </td>
-                        <td className="px-3 py-2 font-mono text-emerald-500">
-                          {entry.contact}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {/* Warden Info for Active Block */}
+            {activeBlock && (
+              <div className="rounded-xl border border-dark-border bg-dark-surface p-5">
+                <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-white">
+                  <IdCard className="h-5 w-5 text-gray-400" /> Block Details
+                </h3>
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Type</span>
+                    <span className="text-white">
+                      {activeBlock.block_type ?? "—"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Floors</span>
+                    <span className="text-white">{activeBlock.floors}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Total Rooms</span>
+                    <span className="text-white">
+                      {activeBlock.total_rooms}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Total Beds</span>
+                    <span className="text-white">
+                      {activeBlock.total_beds}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Warden</span>
+                    <span className="text-white">
+                      {activeBlock.warden_faculty_id
+                        ? (facultyMap.get(activeBlock.warden_faculty_id) ?? "—")
+                        : "—"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">CCTV</span>
+                    <span
+                      className={
+                        activeBlock.has_cctv
+                          ? "text-emerald-400"
+                          : "text-gray-500"
+                      }
+                    >
+                      {activeBlock.has_cctv ? "Yes" : "No"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Anti-Ragging</span>
+                    <span
+                      className={
+                        activeBlock.is_anti_ragging_compliant
+                          ? "text-emerald-400"
+                          : "text-red-400"
+                      }
+                    >
+                      {activeBlock.is_anti_ragging_compliant
+                        ? "Compliant"
+                        : "Non-compliant"}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Night Duty Transport */}
+            {/* NMC Compliance Detail */}
+            {nmcCompliance && (
+              <div className="rounded-xl border border-dark-border bg-dark-surface p-5">
+                <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-white">
+                  <ShieldCheck className="h-5 w-5 text-gray-400" /> NMC Hostel
+                  Compliance
+                </h3>
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Required Capacity</span>
+                    <span className="text-white">{nmcCompliance.required}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Current Capacity</span>
+                    <span className="text-white">{nmcCompliance.capacity}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Status</span>
+                    <span
+                      className={
+                        nmcCompliance.compliant
+                          ? "text-emerald-400"
+                          : "text-red-400"
+                      }
+                    >
+                      {nmcCompliance.compliant ? "Compliant" : "Non-Compliant"}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-gray-400">{nmcCompliance.message}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Night Duty Transport (static — no backend yet) */}
             <div className="rounded-xl border border-dark-border bg-dark-surface p-5">
               <div className="mb-3 flex items-start justify-between">
                 <h3 className="flex items-center gap-2 text-sm font-bold text-white">
@@ -547,6 +730,134 @@ export default function HostelMessPage() {
           </div>
         </div>
       </div>
+
+      {/* Allocate Student Modal */}
+      {allocateOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="w-full max-w-md rounded-xl border border-dark-border bg-dark-surface p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-white">
+                Allocate Student
+              </h2>
+              <button
+                onClick={() => setAllocateOpen(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Student Search */}
+            <div className="mb-4">
+              <label className="mb-1 block text-xs font-medium text-gray-400">
+                Search Student
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                <input
+                  type="text"
+                  value={studentSearch}
+                  onChange={(e) => {
+                    setStudentSearch(e.target.value);
+                    setSelectedStudentId("");
+                  }}
+                  placeholder="Type name or roll number…"
+                  className="w-full rounded-lg border border-dark-border bg-[#262626] py-2 pl-10 pr-3 text-sm text-white placeholder-gray-500 focus:border-emerald-500 focus:outline-none"
+                />
+              </div>
+              {studentSearch.length >= 2 && searchResults?.data && (
+                <div className="mt-1 max-h-40 overflow-y-auto rounded-lg border border-dark-border bg-[#1a1a1a]">
+                  {searchResults.data.length === 0 ? (
+                    <p className="p-2 text-xs text-gray-500">
+                      No students found
+                    </p>
+                  ) : (
+                    searchResults.data.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => {
+                          setSelectedStudentId(s.id);
+                          setStudentSearch(s.name);
+                        }}
+                        className={cn(
+                          "flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-[#262626]",
+                          selectedStudentId === s.id
+                            ? "bg-emerald-500/10 text-emerald-400"
+                            : "text-white",
+                        )}
+                      >
+                        <span>{s.name}</span>
+                        <span className="text-xs text-gray-500">
+                          {s.current_phase ?? ""}
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+              {selectedStudentId && (
+                <p className="mt-1 flex items-center gap-1 text-xs text-emerald-400">
+                  <Check className="h-3 w-3" /> Selected:{" "}
+                  {studentMap.get(selectedStudentId) ?? selectedStudentId}
+                </p>
+              )}
+            </div>
+
+            {/* Room Selector */}
+            <div className="mb-4">
+              <label className="mb-1 block text-xs font-medium text-gray-400">
+                Room
+              </label>
+              <select
+                value={allocateRoomId}
+                onChange={(e) => setAllocateRoomId(e.target.value)}
+                className="w-full rounded-lg border border-dark-border bg-[#262626] p-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+              >
+                <option value="">Select a room</option>
+                {rooms
+                  .filter((r) => r.status === "available")
+                  .map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.room_number} — Floor {r.floor} ({r.current_occupancy}/
+                      {r.capacity})
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            {/* Block (read-only) */}
+            <div className="mb-6">
+              <label className="mb-1 block text-xs font-medium text-gray-400">
+                Block
+              </label>
+              <input
+                type="text"
+                readOnly
+                value={activeBlock?.name ?? "—"}
+                className="w-full rounded-lg border border-dark-border bg-[#262626]/50 p-2 text-sm text-gray-400"
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setAllocateOpen(false)}
+                className="rounded-lg border border-dark-border px-4 py-2 text-sm text-gray-400 hover:text-white"
+              >
+                Cancel
+              </button>
+              <Button
+                onClick={handleAllocate}
+                disabled={
+                  !selectedStudentId || !allocateRoomId || allocate.isPending
+                }
+              >
+                {allocate.isPending ? "Allocating…" : "Allocate"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

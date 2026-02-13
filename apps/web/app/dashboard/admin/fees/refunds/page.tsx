@@ -33,10 +33,9 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { useFeeRefunds, useUpdateFeeRefund } from '@/lib/hooks/admin/use-refunds';
-import type { FeeRefundResponse } from '@/types/admin-api';
+import type { FeeRefundResponse, FeeRefundUpdate } from '@/types/admin-api';
 import { cn } from '@/lib/utils';
 
 const STATUS_COLORS = {
@@ -64,7 +63,7 @@ export default function RefundsPage() {
     page_size: 100,
   });
 
-  const refunds = refundsData?.data ?? [];
+  const refunds = useMemo(() => refundsData?.data ?? [], [refundsData?.data]);
 
   const toRupees = (paisa: number | null) => {
     if (!paisa) return 0;
@@ -408,7 +407,7 @@ function StatusUpdateDialog({
   onOpenChange: (open: boolean) => void;
   toRupees: (paisa: number | null) => number;
 }) {
-  const [targetStatus, setTargetStatus] = useState(refund.status);
+  const [targetStatus, setTargetStatus] = useState<string>(refund.status);
   const updateMutation = useUpdateFeeRefund(refund.id);
 
   const getNextStatuses = (currentStatus: string) => {
@@ -438,7 +437,7 @@ function StatusUpdateDialog({
 
     try {
       await updateMutation.mutateAsync({
-        status: targetStatus as any,
+        status: targetStatus as FeeRefundUpdate['status'],
       });
       onOpenChange(false);
     } catch (err) {

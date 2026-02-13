@@ -9,13 +9,13 @@ import {
   Filter,
   UserPlus,
   AlertTriangle,
-  GraduationCap,
   Check,
   X,
   Zap,
   FileText,
   CalendarDays,
   Mail,
+  Activity,
 } from "lucide-react";
 import {
   BarChart,
@@ -33,6 +33,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -43,111 +44,83 @@ import {
 } from "@/components/ui/table";
 import { StatCard } from "@/components/admin/stat-card";
 import { formatINRCompact } from "@/lib/format";
+import { formatINRShort, paisaToRupees } from "@/lib/utils/currency";
+import {
+  useDashboardStats,
+  useFeeCollectionTrend,
+  usePendingApprovals,
+  useRecentActivity,
+  useStudentDistribution,
+} from "@/lib/hooks/admin/use-dashboard";
 import type {
-  PendingApproval,
-  RecentAdmission,
-  FeeCollectionMonth,
-  StudentPhaseData,
-} from "@/types/admin";
+  FeeTrendItem,
+  PendingApprovalItem,
+  RecentActivityItem,
+} from "@/lib/hooks/admin/use-dashboard";
 
 // ---------------------------------------------------------------------------
-// Mock Data — TODO: Replace with API calls
+// Month name helper
 // ---------------------------------------------------------------------------
 
-// TODO: Replace with useQuery({ queryKey: ["admin", "dashboard", "feeCollection"], queryFn: fetchFeeCollection })
-const MOCK_FEE_DATA: FeeCollectionMonth[] = [
-  { month: "Apr", actual: 4_20_00_000, projected: 5_00_00_000 },
-  { month: "May", actual: 5_80_00_000, projected: 6_20_00_000 },
-  { month: "Jun", actual: 7_50_00_000, projected: 6_80_00_000 },
-  { month: "Jul", actual: 4_80_00_000, projected: 5_60_00_000 },
-  { month: "Aug", actual: 7_80_00_000, projected: 7_40_00_000 },
-  { month: "Sep", actual: 8_60_00_000, projected: 8_70_00_000 },
-  { month: "Oct", actual: 7_20_00_000, projected: 9_30_00_000 },
-  { month: "Nov", actual: 10_20_00_000, projected: 9_90_00_000 },
-  { month: "Dec", actual: 9_80_00_000, projected: 10_50_00_000 },
-  { month: "Jan", actual: 11_30_00_000, projected: 11_10_00_000 },
-  { month: "Feb", actual: 10_70_00_000, projected: 10_80_00_000 },
-  { month: "Mar", actual: 13_80_00_000, projected: 12_00_00_000 },
+const MONTH_SHORT = [
+  "", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
-// TODO: Replace with useQuery({ queryKey: ["admin", "dashboard", "studentPhases"], queryFn: fetchStudentPhases })
-const MOCK_PHASE_DATA: StudentPhaseData[] = [
-  { name: "Phase I (Pre-Clinical)", value: 650, color: "#10B981", percentage: 27 },
-  { name: "Phase II (Para-Clinical)", value: 780, color: "#3B82F6", percentage: 32 },
-  { name: "Phase III (Clinical)", value: 720, color: "#8B5CF6", percentage: 29 },
-  { name: "CRMI (Internship)", value: 300, color: "#F59E0B", percentage: 12 },
-];
+function feeTrendToChart(items: FeeTrendItem[]) {
+  return items.map((item) => ({
+    month: MONTH_SHORT[item.month] || `M${item.month}`,
+    actual: paisaToRupees(item.amount),
+    count: item.count,
+  }));
+}
 
-// TODO: Replace with useQuery({ queryKey: ["admin", "dashboard", "approvals"], queryFn: fetchPendingApprovals })
-const MOCK_APPROVALS: PendingApproval[] = [
-  {
-    id: "1",
-    requestId: "REQ-2025-891",
-    type: "Lab Equipment Purchase Order",
-    requesterName: "Dr. Rajesh Patel",
-    requesterInitials: "RP",
-    priority: "high",
-    createdAt: "2025-02-10",
-  },
-  {
-    id: "2",
-    requestId: "REQ-2025-892",
-    type: "Leave Application",
-    requesterName: "Dr. Meera Iyer",
-    requesterInitials: "MI",
-    priority: "medium",
-    createdAt: "2025-02-11",
-  },
-  {
-    id: "3",
-    requestId: "REQ-2025-895",
-    type: "Guest Lecture Honorarium",
-    requesterName: "Dr. Arun Kumar",
-    requesterInitials: "AK",
-    priority: "low",
-    createdAt: "2025-02-11",
-  },
-];
+// ---------------------------------------------------------------------------
+// Phase pie chart colors
+// ---------------------------------------------------------------------------
 
-// TODO: Replace with useQuery({ queryKey: ["admin", "dashboard", "recentAdmissions"], queryFn: fetchRecentAdmissions })
-const MOCK_ADMISSIONS: RecentAdmission[] = [
-  {
-    id: "1",
-    studentName: "Shreya Banerjee",
-    studentInitials: "SB",
-    enrollmentNo: "MBBS-2025-0421",
-    department: "Pathology",
-    status: "active",
-    feeStatus: "paid",
-  },
-  {
-    id: "2",
-    studentName: "Jai Lakshmanan",
-    studentInitials: "JL",
-    enrollmentNo: "MBBS-2025-0422",
-    department: "Radiology",
-    status: "active",
-    feeStatus: "due",
-  },
-  {
-    id: "3",
-    studentName: "Mohammad Rashid",
-    studentInitials: "MR",
-    enrollmentNo: "MBBS-2025-0423",
-    department: "General Surgery",
-    status: "pending",
-    feeStatus: "paid",
-  },
-  {
-    id: "4",
-    studentName: "Ananya Lakshmi",
-    studentInitials: "AL",
-    enrollmentNo: "MBBS-2025-0424",
-    department: "Pediatrics",
-    status: "active",
-    feeStatus: "paid",
-  },
-];
+const PHASE_COLORS: Record<string, string> = {
+  "Phase I": "#10B981",
+  "Phase II": "#3B82F6",
+  "Phase III": "#8B5CF6",
+  CRMI: "#F59E0B",
+  Unassigned: "#6B7280",
+};
+
+function phaseColor(phase: string): string {
+  for (const [key, color] of Object.entries(PHASE_COLORS)) {
+    if (phase.includes(key)) return color;
+  }
+  return "#6B7280";
+}
+
+// ---------------------------------------------------------------------------
+// Section Error State
+// ---------------------------------------------------------------------------
+
+function SectionError({
+  message,
+  onRetry,
+}: {
+  message?: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center py-8 text-center">
+      <p className="text-xs text-red-400">{message || "Failed to load"}</p>
+      {onRetry && (
+        <Button
+          onClick={onRetry}
+          variant="outline"
+          size="sm"
+          className="mt-2"
+        >
+          Retry
+        </Button>
+      )}
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Custom Tooltip for Fee Chart
@@ -180,17 +153,132 @@ function FeeTooltip({
 }
 
 // ---------------------------------------------------------------------------
+// Skeleton components for each section
+// ---------------------------------------------------------------------------
+
+function StatCardsSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <Card key={i}>
+          <CardContent className="flex h-28 flex-col justify-between p-4">
+            <div className="flex items-start justify-between">
+              <div className="space-y-2">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-7 w-16" />
+              </div>
+              <Skeleton className="h-8 w-8 rounded" />
+            </div>
+            <Skeleton className="h-3 w-24" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function ChartSkeleton() {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-3 w-56" />
+        </div>
+      </div>
+      <Skeleton className="h-[260px] w-full rounded" />
+    </div>
+  );
+}
+
+function TableSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="space-y-2 p-4">
+      {Array.from({ length: rows }).map((_, i) => (
+        <Skeleton key={i} className="h-10 w-full" />
+      ))}
+    </div>
+  );
+}
+
+function PieSkeleton() {
+  return (
+    <div className="flex flex-col items-center space-y-3 p-4">
+      <Skeleton className="h-44 w-44 rounded-full" />
+      <div className="w-full space-y-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-4 w-full" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function priorityBadgeVariant(
+  priority: string
+): "destructive" | "warning" | "info" | "outline" {
+  if (priority === "urgent" || priority === "high") return "destructive";
+  if (priority === "normal" || priority === "medium") return "warning";
+  return "info";
+}
+
+function activityColor(action: string) {
+  if (action === "create") return "bg-emerald-500/20";
+  if (action === "update") return "bg-blue-500/20";
+  if (action === "delete") return "bg-red-500/20";
+  return "bg-gray-500/20";
+}
+
+function activityIconColor(action: string) {
+  if (action === "create") return "text-emerald-400";
+  if (action === "update") return "text-blue-400";
+  if (action === "delete") return "text-red-400";
+  return "text-gray-400";
+}
+
+function initials(name: string | null | undefined): string {
+  if (!name) return "??";
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+// ---------------------------------------------------------------------------
 // Page Component
 // ---------------------------------------------------------------------------
 
 export default function AdminDashboard() {
   const today = format(new Date(), "MMM dd, yyyy");
 
-  // TODO: Replace with actual API calls using TanStack Query
-  // const { data: stats, isLoading } = useQuery({
-  //   queryKey: ["admin", "dashboard", "stats"],
-  //   queryFn: () => fetchDashboardStats(),
-  // });
+  const statsQuery = useDashboardStats();
+  const feeTrendQuery = useFeeCollectionTrend();
+  const approvalsQuery = usePendingApprovals(5);
+  const activityQuery = useRecentActivity(5);
+  const distributionQuery = useStudentDistribution();
+
+  const stats = statsQuery.data;
+
+  // Transform student distribution to pie chart data
+  const phaseData = distributionQuery.data
+    ? Object.entries(distributionQuery.data.by_phase).map(([name, value]) => ({
+        name,
+        value,
+        color: phaseColor(name),
+      }))
+    : [];
+  const totalStudents = phaseData.reduce((sum, p) => sum + p.value, 0);
+
+  // Transform fee trend for recharts
+  const feeChartData = feeTrendQuery.data
+    ? feeTrendToChart(feeTrendQuery.data)
+    : [];
 
   return (
     <div className="space-y-4">
@@ -216,109 +304,156 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Total Students"
-          value="2,450"
-          subtitle="vs last sem"
-          icon={<Users className="h-4 w-4 text-blue-400" />}
-          iconBg="bg-blue-500/10"
-          trend={{ value: "12.5%", positive: true }}
+      {statsQuery.isLoading ? (
+        <StatCardsSkeleton />
+      ) : statsQuery.isError ? (
+        <SectionError
+          message={statsQuery.error?.message}
+          onRetry={() => statsQuery.refetch()}
         />
-        <StatCard
-          title="Faculty"
-          value="328"
-          subtitle="new hires"
-          icon={<Stethoscope className="h-4 w-4 text-purple-400" />}
-          iconBg="bg-purple-500/10"
-          trend={{ value: "2.1%", positive: true }}
-        />
-        <StatCard
-          title="Collection"
-          value={formatINRCompact(14_23_56_000)}
-          subtitle="target reached"
-          icon={<IndianRupee className="h-4 w-4 text-emerald-500" />}
-          iconBg="bg-emerald-500/10"
-          trend={{ value: "84.3%", positive: true }}
-          highlight
-        />
-        <StatCard
-          title="Pending"
-          value="26"
-          subtitle="actions needed"
-          icon={<Clock className="h-4 w-4 text-orange-400" />}
-          iconBg="bg-orange-500/10"
-          trend={{ value: "14 Urgent", positive: false }}
-        />
-      </div>
+      ) : stats ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            title="Total Students"
+            value={stats.students.total.toLocaleString("en-IN")}
+            subtitle={`${stats.students.active.toLocaleString("en-IN")} active`}
+            icon={<Users className="h-4 w-4 text-blue-400" />}
+            iconBg="bg-blue-500/10"
+            trend={
+              stats.students.admission_pipeline > 0
+                ? {
+                    value: `${stats.students.admission_pipeline} in pipeline`,
+                    positive: true,
+                  }
+                : undefined
+            }
+          />
+          <StatCard
+            title="Faculty"
+            value={stats.faculty.total.toLocaleString("en-IN")}
+            subtitle={`${stats.faculty.active.toLocaleString("en-IN")} active`}
+            icon={<Stethoscope className="h-4 w-4 text-purple-400" />}
+            iconBg="bg-purple-500/10"
+            trend={
+              stats.faculty.on_leave > 0
+                ? {
+                    value: `${stats.faculty.on_leave} on leave`,
+                    positive: false,
+                  }
+                : undefined
+            }
+          />
+          <StatCard
+            title="Fee Collection"
+            value={formatINRShort(stats.fee_collection.total_collected)}
+            subtitle={`AY ${stats.fee_collection.academic_year}`}
+            icon={<IndianRupee className="h-4 w-4 text-emerald-500" />}
+            iconBg="bg-emerald-500/10"
+            trend={{
+              value: `${stats.fee_collection.payment_count} payments`,
+              positive: true,
+            }}
+            highlight
+          />
+          <StatCard
+            title="Pending"
+            value={String(
+              stats.pending_approvals +
+                stats.pending_leaves +
+                stats.active_grievances
+            )}
+            subtitle="actions needed"
+            icon={<Clock className="h-4 w-4 text-orange-400" />}
+            iconBg="bg-orange-500/10"
+            trend={
+              stats.pending_approvals > 0
+                ? {
+                    value: `${stats.pending_approvals} approvals`,
+                    positive: false,
+                  }
+                : undefined
+            }
+          />
+        </div>
+      ) : null}
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Fee Collection Trend */}
         <Card className="lg:col-span-2">
           <CardContent className="p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-white">
-                  Fee Collection Trend
-                </h3>
-                <p className="text-xs text-gray-400">
-                  Monthly breakdown vs projected targets (AY 2025-26)
+            {feeTrendQuery.isLoading ? (
+              <ChartSkeleton />
+            ) : feeTrendQuery.isError ? (
+              <SectionError
+                message={feeTrendQuery.error?.message}
+                onRetry={() => feeTrendQuery.refetch()}
+              />
+            ) : feeChartData.length === 0 ? (
+              <div className="flex h-[300px] flex-col items-center justify-center text-center">
+                <p className="text-sm text-gray-400">
+                  No fee collection data yet
+                </p>
+                <p className="text-xs text-gray-500">
+                  Payments will appear here once recorded
                 </p>
               </div>
-              <div className="flex gap-4">
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                  <span className="text-gray-400">Actual</span>
+            ) : (
+              <>
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-white">
+                      Fee Collection Trend
+                    </h3>
+                    <p className="text-xs text-gray-400">
+                      Monthly breakdown (
+                      {stats?.fee_collection.academic_year || "current AY"})
+                    </p>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                      <span className="text-gray-400">Collected</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="h-2 w-2 rounded-full bg-gray-700" />
-                  <span className="text-gray-400">Projected</span>
+                <div className="h-[260px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={feeChartData}
+                      margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
+                      barGap={2}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="#1E1E1E"
+                        vertical={false}
+                      />
+                      <XAxis
+                        dataKey="month"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: "#6B7280", fontSize: 11 }}
+                      />
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: "#6B7280", fontSize: 11 }}
+                        tickFormatter={(v) => formatINRCompact(v)}
+                      />
+                      <Tooltip content={<FeeTooltip />} />
+                      <Bar
+                        dataKey="actual"
+                        name="Collected"
+                        fill="#10B981"
+                        radius={[4, 4, 0, 0]}
+                        barSize={18}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
-              </div>
-            </div>
-            <div className="h-[260px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={MOCK_FEE_DATA}
-                  margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
-                  barGap={2}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="#1E1E1E"
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="month"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "#6B7280", fontSize: 11 }}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "#6B7280", fontSize: 11 }}
-                    tickFormatter={(v) => formatINRCompact(v)}
-                  />
-                  <Tooltip content={<FeeTooltip />} />
-                  <Bar
-                    dataKey="projected"
-                    name="Projected"
-                    fill="#374151"
-                    radius={[4, 4, 0, 0]}
-                    barSize={14}
-                  />
-                  <Bar
-                    dataKey="actual"
-                    name="Actual"
-                    fill="#10B981"
-                    radius={[4, 4, 0, 0]}
-                    barSize={14}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -328,51 +463,69 @@ export default function AdminDashboard() {
             <h3 className="mb-2 text-sm font-bold text-white">
               Student Phases
             </h3>
-            <div className="flex flex-1 flex-col items-center justify-center">
-              <div className="relative h-44 w-44">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={MOCK_PHASE_DATA}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={50}
-                      outerRadius={70}
-                      paddingAngle={3}
-                      dataKey="value"
-                      strokeWidth={0}
-                    >
-                      {MOCK_PHASE_DATA.map((entry) => (
-                        <Cell key={entry.name} fill={entry.color} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-xs text-gray-400">Total</span>
-                  <span className="text-lg font-bold text-white">2,450</span>
-                </div>
+            {distributionQuery.isLoading ? (
+              <PieSkeleton />
+            ) : distributionQuery.isError ? (
+              <SectionError
+                message={distributionQuery.error?.message}
+                onRetry={() => distributionQuery.refetch()}
+              />
+            ) : phaseData.length === 0 ? (
+              <div className="flex flex-1 items-center justify-center">
+                <p className="text-xs text-gray-400">No student data</p>
               </div>
-              <div className="mt-4 w-full space-y-2">
-                {MOCK_PHASE_DATA.map((phase) => (
-                  <div
-                    key={phase.name}
-                    className="flex items-center justify-between text-xs"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="h-2 w-2 rounded-full"
-                        style={{ backgroundColor: phase.color }}
-                      />
-                      <span className="text-gray-300">{phase.name}</span>
-                    </div>
-                    <span className="font-medium text-white">
-                      {phase.percentage}%
+            ) : (
+              <div className="flex flex-1 flex-col items-center justify-center">
+                <div className="relative h-44 w-44">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={phaseData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={70}
+                        paddingAngle={3}
+                        dataKey="value"
+                        strokeWidth={0}
+                      >
+                        {phaseData.map((entry) => (
+                          <Cell key={entry.name} fill={entry.color} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-xs text-gray-400">Total</span>
+                    <span className="text-lg font-bold text-white">
+                      {totalStudents.toLocaleString("en-IN")}
                     </span>
                   </div>
-                ))}
+                </div>
+                <div className="mt-4 w-full space-y-2">
+                  {phaseData.map((phase) => (
+                    <div
+                      key={phase.name}
+                      className="flex items-center justify-between text-xs"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="h-2 w-2 rounded-full"
+                          style={{ backgroundColor: phase.color }}
+                        />
+                        <span className="text-gray-300">{phase.name}</span>
+                      </div>
+                      <span className="font-medium text-white">
+                        {totalStudents > 0
+                          ? Math.round((phase.value / totalStudents) * 100)
+                          : 0}
+                        %
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -387,168 +540,144 @@ export default function AdminDashboard() {
               Pending Approvals
             </h3>
             <Button variant="link" size="sm" className="h-auto p-0 text-xs">
-              View All (26)
+              View All{stats ? ` (${stats.pending_approvals})` : ""}
             </Button>
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow className="border-dark-border bg-dark-elevated/50 hover:bg-dark-elevated/50">
-                <TableHead className="px-4 py-3 text-[10px] uppercase font-medium text-gray-500">
-                  Request Type
-                </TableHead>
-                <TableHead className="px-4 py-3 text-[10px] uppercase font-medium text-gray-500">
-                  Requester
-                </TableHead>
-                <TableHead className="px-4 py-3 text-[10px] uppercase font-medium text-gray-500">
-                  Priority
-                </TableHead>
-                <TableHead className="px-4 py-3 text-[10px] uppercase font-medium text-gray-500 text-right">
-                  Action
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {MOCK_APPROVALS.map((approval) => (
-                <TableRow
-                  key={approval.id}
-                  className="group cursor-pointer border-dark-border hover:bg-white/5"
-                >
-                  <TableCell className="px-4 py-3 text-xs font-medium text-white">
-                    {approval.type}
-                    <div className="text-[10px] font-normal text-gray-500">
-                      #{approval.requestId}
-                    </div>
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-xs text-gray-400">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-700 text-[9px] text-white">
-                        {approval.requesterInitials}
-                      </div>
-                      <span>{approval.requesterName}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="px-4 py-3">
-                    <Badge
-                      variant={
-                        approval.priority === "high"
-                          ? "destructive"
-                          : approval.priority === "medium"
-                            ? "warning"
-                            : "info"
-                      }
-                    >
-                      {approval.priority}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500 hover:text-white"
-                        aria-label="Approve request"
-                      >
-                        <Check className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white"
-                        aria-label="Reject request"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {approvalsQuery.isLoading ? (
+            <TableSkeleton rows={3} />
+          ) : approvalsQuery.isError ? (
+            <SectionError
+              message={approvalsQuery.error?.message}
+              onRetry={() => approvalsQuery.refetch()}
+            />
+          ) : !approvalsQuery.data?.length ? (
+            <div className="flex items-center justify-center py-8">
+              <p className="text-xs text-gray-400">No pending approvals</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="border-dark-border bg-dark-elevated/50 hover:bg-dark-elevated/50">
+                  <TableHead className="px-4 py-3 text-[10px] uppercase font-medium text-gray-500">
+                    Request
+                  </TableHead>
+                  <TableHead className="px-4 py-3 text-[10px] uppercase font-medium text-gray-500">
+                    Requester
+                  </TableHead>
+                  <TableHead className="px-4 py-3 text-[10px] uppercase font-medium text-gray-500">
+                    Priority
+                  </TableHead>
+                  <TableHead className="px-4 py-3 text-[10px] uppercase font-medium text-gray-500 text-right">
+                    Action
+                  </TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {approvalsQuery.data.map((approval: PendingApprovalItem) => (
+                  <TableRow
+                    key={approval.id}
+                    className="group cursor-pointer border-dark-border hover:bg-white/5"
+                  >
+                    <TableCell className="px-4 py-3 text-xs font-medium text-white">
+                      {approval.title || approval.workflow_type}
+                      <div className="text-[10px] font-normal text-gray-500">
+                        {approval.workflow_type}
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-xs text-gray-400">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-700 text-[9px] text-white">
+                          {initials(approval.requested_by_name)}
+                        </div>
+                        <span>
+                          {approval.requested_by_name || "Unknown"}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-4 py-3">
+                      <Badge variant={priorityBadgeVariant(approval.priority)}>
+                        {approval.priority}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-right">
+                      <div className="flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500 hover:text-white"
+                          aria-label="Approve request"
+                        >
+                          <Check className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white"
+                          aria-label="Reject request"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </Card>
 
-        {/* Recent Admissions */}
+        {/* Recent Activity */}
         <Card className="overflow-hidden">
           <div className="flex items-center justify-between border-b border-dark-border p-4">
             <h3 className="flex items-center gap-2 text-sm font-bold text-white">
-              <GraduationCap className="h-4 w-4 text-blue-500" />
-              Recent Admissions
+              <Activity className="h-4 w-4 text-blue-500" />
+              Recent Activity
             </h3>
             <Button variant="link" size="sm" className="h-auto p-0 text-xs">
-              Full List
+              View All
             </Button>
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow className="border-dark-border bg-dark-elevated/50 hover:bg-dark-elevated/50">
-                <TableHead className="px-4 py-3 text-[10px] uppercase font-medium text-gray-500">
-                  Student
-                </TableHead>
-                <TableHead className="px-4 py-3 text-[10px] uppercase font-medium text-gray-500">
-                  Department
-                </TableHead>
-                <TableHead className="px-4 py-3 text-[10px] uppercase font-medium text-gray-500">
-                  Status
-                </TableHead>
-                <TableHead className="px-4 py-3 text-[10px] uppercase font-medium text-gray-500 text-right">
-                  Fee
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {MOCK_ADMISSIONS.map((admission) => (
-                <TableRow
-                  key={admission.id}
-                  className="cursor-pointer border-dark-border hover:bg-white/5"
+          {activityQuery.isLoading ? (
+            <TableSkeleton rows={3} />
+          ) : activityQuery.isError ? (
+            <SectionError
+              message={activityQuery.error?.message}
+              onRetry={() => activityQuery.refetch()}
+            />
+          ) : !activityQuery.data?.length ? (
+            <div className="flex items-center justify-center py-8">
+              <p className="text-xs text-gray-400">No recent activity</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-dark-border">
+              {activityQuery.data.map((item: RecentActivityItem) => (
+                <div
+                  key={item.id}
+                  className="flex items-start gap-3 px-4 py-3 hover:bg-white/5"
                 >
-                  <TableCell className="px-4 py-2.5 text-xs text-gray-400">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-6 w-6 items-center justify-center rounded bg-gray-700 text-[10px] text-white">
-                        {admission.studentInitials}
-                      </div>
-                      <div>
-                        <div className="font-medium text-white">
-                          {admission.studentName}
-                        </div>
-                        <div className="text-[9px]">
-                          {admission.enrollmentNo}
-                        </div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="px-4 py-2.5 text-xs text-gray-400">
-                    {admission.department}
-                  </TableCell>
-                  <TableCell className="px-4 py-2.5 text-xs text-gray-400">
-                    <span className="inline-flex items-center gap-1">
-                      <span
-                        className={`h-1.5 w-1.5 rounded-full ${
-                          admission.status === "active"
-                            ? "bg-emerald-500"
-                            : admission.status === "pending"
-                              ? "bg-yellow-500"
-                              : "bg-blue-500"
-                        }`}
-                      />
-                      <span className="capitalize">{admission.status}</span>
-                    </span>
-                  </TableCell>
-                  <TableCell className="px-4 py-2.5 text-xs text-right">
-                    <Badge
-                      variant={
-                        admission.feeStatus === "paid"
-                          ? "default"
-                          : admission.feeStatus === "due"
-                            ? "warning"
-                            : "info"
-                      }
-                    >
-                      {admission.feeStatus}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
+                  <div
+                    className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${activityColor(item.action)} ${activityIconColor(item.action)}`}
+                  >
+                    <Activity className="h-3 w-3" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs text-white">
+                      <span className="font-medium">
+                        {item.user_name || "System"}
+                      </span>{" "}
+                      <span className="text-gray-400">{item.action}</span>{" "}
+                      <span className="text-gray-300">{item.entity_type}</span>
+                    </p>
+                    <p className="text-[10px] text-gray-500">
+                      {item.timestamp
+                        ? format(new Date(item.timestamp), "MMM dd, h:mm a")
+                        : "—"}
+                    </p>
+                  </div>
+                </div>
               ))}
-            </TableBody>
-          </Table>
+            </div>
+          )}
         </Card>
       </div>
 

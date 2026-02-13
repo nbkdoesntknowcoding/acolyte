@@ -505,7 +505,6 @@ export function useTestSuites(): UseQueryResult<TestSuite[]> {
 export function useRunTests() {
   const { getToken } = useAuth();
   const fetcher = createFetcher(getToken);
-  const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ suite, keyword }: { suite?: string; keyword?: string }) => {
       const params = new URLSearchParams();
