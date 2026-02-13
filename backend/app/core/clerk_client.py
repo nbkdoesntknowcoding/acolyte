@@ -38,13 +38,15 @@ class ClerkClient:
         )
 
     async def create_organization(
-        self, name: str, slug: str, created_by: str | None = None
+        self, name: str, slug: str | None = None, created_by: str | None = None
     ) -> dict[str, Any] | None:
         """Create a Clerk organization.
 
         Returns the org dict with 'id' field (org_xxx) on success, None on failure.
         """
-        payload: dict[str, Any] = {"name": name, "slug": slug}
+        payload: dict[str, Any] = {"name": name}
+        if slug:
+            payload["slug"] = slug
         if created_by:
             payload["created_by"] = created_by
         try:

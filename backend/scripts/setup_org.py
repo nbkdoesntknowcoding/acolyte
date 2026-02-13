@@ -112,7 +112,8 @@ async def setup(args: argparse.Namespace) -> None:
                 return
 
         # Create Clerk organization
-        print(f"Creating Clerk org: {args.org_name} (slug: {args.org_slug})...")
+        slug_info = f" (slug: {args.org_slug})" if args.org_slug else ""
+        print(f"Creating Clerk org: {args.org_name}{slug_info}...")
         org = await clerk.create_organization(
             name=args.org_name,
             slug=args.org_slug,
@@ -167,7 +168,7 @@ def main() -> None:
 
     # Clerk org details
     parser.add_argument("--org-name", required=True, help="Clerk organization name")
-    parser.add_argument("--org-slug", required=True, help="Clerk organization slug")
+    parser.add_argument("--org-slug", help="Clerk organization slug (optional, depends on Clerk instance)")
 
     # Domain mapping
     parser.add_argument(
