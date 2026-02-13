@@ -11,6 +11,9 @@ import {
   XCircle,
   Globe,
   FileText,
+  Smartphone,
+  Monitor,
+  QrCode,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -43,6 +46,7 @@ import {
   useOverdueBooks,
 } from "@/lib/hooks/admin/use-library";
 import { useDepartments } from "@/lib/hooks/admin/use-departments";
+import { useScanLogs } from "@/lib/hooks/admin/use-scan-logs";
 import { LoadingState } from "@/components/admin/loading-state";
 import { ErrorState } from "@/components/admin/error-state";
 import { EmptyState } from "@/components/admin/empty-state";
@@ -114,6 +118,16 @@ export default function LibraryPage() {
     isLoading: departmentsLoading,
     error: departmentsError,
   } = useDepartments({ page_size: 500 });
+
+  // QR checkout scan logs for today
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const { data: qrCheckoutsToday } = useScanLogs({
+    action_type: "library_checkout",
+    date_from: todayISO,
+    date_to: todayISO,
+    validation_result: "success",
+    page_size: 200,
+  });
 
   // Mutations
   const issueBookMutation = useIssueBook();
@@ -292,6 +306,26 @@ export default function LibraryPage() {
             Dismiss
           </Button>
         </div>
+      )}
+
+      {/* QR Checkouts Today */}
+      {qrCheckoutsToday && (
+        <Card className="border-emerald-500/20 bg-emerald-500/5">
+          <CardContent className="flex items-center justify-between p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10">
+                <QrCode className="h-5 w-5 text-emerald-500" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">QR Checkouts Today</p>
+                <p className="text-2xl font-bold">{qrCheckoutsToday.length}</p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Books checked out via QR scan
+            </p>
+          </CardContent>
+        </Card>
       )}
 
       {/* NMC Compliance Cards */}
@@ -693,6 +727,9 @@ export default function LibraryPage() {
                       Fine (₹)
                     </th>
                     <th className="p-2 text-left text-sm font-medium">
+                      Method
+                    </th>
+                    <th className="p-2 text-left text-sm font-medium">
                       Actions
                     </th>
                   </tr>
@@ -728,6 +765,19 @@ export default function LibraryPage() {
                         </td>
                         <td className="p-2 text-sm font-bold text-red-600">
                           ₹{fine.toFixed(2)}
+                        </td>
+                        <td className="p-2 text-sm">
+                          {qrCheckoutsToday?.some(
+                            (s) => s.entity_id === issuance.book_id
+                          ) ? (
+                            <Badge variant="default" className="gap-1">
+                              <Smartphone className="h-3 w-3" /> QR Scan
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="gap-1">
+                              <Monitor className="h-3 w-3" /> Manual
+                            </Badge>
+                          )}
                         </td>
                         <td className="p-2 text-sm">
                           <Button

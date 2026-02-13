@@ -101,6 +101,37 @@ CELERY_BEAT_SCHEDULE = {
         "task": "platform.cleanup_old_metrics",
         "schedule": crontab(hour=3, minute=0, day_of_week=0),  # Sunday 3 AM
     },
+    # --- AQP: Device Trust tasks ---
+    "check-expired-device-tokens": {
+        "task": "app.shared.tasks.device_tasks.check_expired_device_tokens",
+        "schedule": crontab(hour=2, minute=0),  # 2:00 AM IST daily
+    },
+    "flag-suspicious-resets": {
+        "task": "app.shared.tasks.device_tasks.flag_suspicious_device_resets",
+        "schedule": crontab(hour=3, minute=30),  # 3:30 AM IST daily
+    },
+    "cleanup-transfer-requests": {
+        "task": "app.shared.tasks.device_tasks.cleanup_expired_transfer_requests",
+        "schedule": crontab(minute=0),  # Every hour
+    },
+    # --- AQP: QR Engine tasks ---
+    "rotate-qr-codes": {
+        "task": "app.shared.tasks.qr_tasks.rotate_action_point_qrs",
+        "schedule": 60.0,  # Every 60 seconds
+    },
+    "qr-daily-report": {
+        "task": "app.shared.tasks.qr_tasks.generate_qr_daily_report",
+        "schedule": crontab(hour=0, minute=5),  # 12:05 AM
+    },
+    # --- AQP: Dynamic Role tasks ---
+    "check-expiring-roles": {
+        "task": "app.shared.tasks.role_tasks.check_expiring_roles",
+        "schedule": crontab(hour=8, minute=0),  # 8:00 AM IST daily
+    },
+    "auto-deactivate-expired-roles": {
+        "task": "app.shared.tasks.role_tasks.auto_deactivate_expired_roles",
+        "schedule": crontab(hour=1, minute=0),  # 1:00 AM IST daily
+    },
 }
 
 # ---------------------------------------------------------------------------
@@ -148,6 +179,9 @@ celery_app.conf.update(
         "app.engines.ai.analytics.tasks",
         "app.engines.ai.tasks",
         "app.platform.tasks",
+        "app.shared.tasks.device_tasks",
+        "app.shared.tasks.qr_tasks",
+        "app.shared.tasks.role_tasks",
     ],
 )
 

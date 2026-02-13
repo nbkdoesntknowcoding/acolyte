@@ -10,6 +10,9 @@ import {
   FileText,
   Clock,
   AlertCircle,
+  Users,
+  UserPlus,
+  Trash2,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -40,6 +43,10 @@ import {
   useCreateGrievance,
   useUpdateGrievance,
 } from "@/lib/hooks/admin/use-grievances";
+import {
+  useRoleAssignments,
+  useRevokeRoleAssignment,
+} from "@/lib/hooks/admin/use-role-assignments";
 import { LoadingState } from "@/components/admin/loading-state";
 import { ErrorState } from "@/components/admin/error-state";
 import { EmptyState } from "@/components/admin/empty-state";
@@ -75,6 +82,10 @@ export default function GrievancesPage() {
   const [newStatus, setNewStatus] = useState<string>("");
   const [resolutionNotes, setResolutionNotes] = useState("");
 
+  // Committee members
+  const [expandedCommitteeId, setExpandedCommitteeId] = useState<string | null>(null);
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+
   // Success/Error banners
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -100,6 +111,16 @@ export default function GrievancesPage() {
   // Mutations
   const createGrievanceMutation = useCreateGrievance();
   const updateGrievanceMutation = useUpdateGrievance();
+  const revokeRoleMutation = useRevokeRoleAssignment();
+
+  // Committee members from dynamic role assignments
+  const { data: allCommitteeRoles, isLoading: membersLoading } = useRoleAssignments(
+    { context_type: "committee", is_active: true },
+    { enabled: !!expandedCommitteeId },
+  );
+  const committeeMembers = (allCommitteeRoles ?? []).filter(
+    (r) => r.context_id === expandedCommitteeId,
+  );
 
   // Extract data
   const committees = committeesData?.data ?? [];
@@ -293,50 +314,153 @@ export default function GrievancesPage() {
           />
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {nmcCommittees.map((committee) => (
-              <Card key={committee.id}>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-emerald-500" />
-                    {committee.name}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {committee.committee_type && (
-                    <div className="text-xs text-muted-foreground">
-                      Type: {committee.committee_type}
+            {nmcCommittees.map((committee) => {
+              const isExpanded = expandedCommitteeId === committee.id;
+              return (
+                <Card key={committee.id}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-emerald-500" />
+                      {committee.name}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {committee.committee_type && (
+                      <div className="text-xs text-muted-foreground">
+                        Type: {committee.committee_type}
+                      </div>
+                    )}
+                    {committee.chairperson_name && (
+                      <div className="text-sm">
+                        <span className="font-medium">Chairperson:</span>{" "}
+                        {committee.chairperson_name}
+                      </div>
+                    )}
+                    {committee.meeting_frequency && (
+                      <div className="text-xs text-muted-foreground">
+                        Meetings: {committee.meeting_frequency}
+                      </div>
+                    )}
+                    {committee.last_meeting_date && (
+                      <div className="text-xs text-muted-foreground">
+                        Last Meeting:{" "}
+                        {new Date(committee.last_meeting_date).toLocaleDateString()}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant={
+                          committee.status === "active" ? "default" : "outline"
+                        }
+                      >
+                        {committee.status}
+                      </Badge>
                     </div>
-                  )}
-                  {committee.chairperson_name && (
-                    <div className="text-sm">
-                      <span className="font-medium">Chairperson:</span>{" "}
-                      {committee.chairperson_name}
-                    </div>
-                  )}
-                  {committee.meeting_frequency && (
-                    <div className="text-xs text-muted-foreground">
-                      Meetings: {committee.meeting_frequency}
-                    </div>
-                  )}
-                  {committee.last_meeting_date && (
-                    <div className="text-xs text-muted-foreground">
-                      Last Meeting:{" "}
-                      {new Date(committee.last_meeting_date).toLocaleDateString()}
-                    </div>
-                  )}
-                  <Badge
-                    variant={
-                      committee.status === "active" ? "default" : "outline"
-                    }
-                  >
-                    {committee.status}
-                  </Badge>
-                </CardContent>
-              </Card>
-            ))}
+
+                    {/* Members toggle */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 w-full"
+                      onClick={() =>
+                        setExpandedCommitteeId(isExpanded ? null : committee.id)
+                      }
+                    >
+                      <Users className="mr-2 h-3.5 w-3.5" />
+                      {isExpanded ? "Hide Members" : "View Members"}
+                    </Button>
+
+                    {/* Members list */}
+                    {isExpanded && (
+                      <div className="mt-3 space-y-2 border-t pt-3">
+                        {membersLoading ? (
+                          <p className="text-xs text-muted-foreground">Loading members…</p>
+                        ) : committeeMembers.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">No members assigned yet.</p>
+                        ) : (
+                          committeeMembers.map((member) => (
+                            <div
+                              key={member.id}
+                              className="flex items-center justify-between rounded-md border p-2"
+                            >
+                              <div>
+                                <p className="text-sm font-medium">{member.user_name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {member.role_type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                                </p>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-red-500 hover:bg-red-500/10"
+                                onClick={() => setRemovingMemberId(member.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          ))
+                        )}
+                        <Link
+                          href={`/dashboard/admin/role-assignments?context_type=committee&context_id=${committee.id}`}
+                        >
+                          <Button variant="outline" size="sm" className="mt-1 w-full">
+                            <UserPlus className="mr-2 h-3.5 w-3.5" />
+                            Add Member
+                          </Button>
+                        </Link>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
+
         )}
       </div>
+
+      {/* Remove member confirmation */}
+      <Dialog
+        open={!!removingMemberId}
+        onOpenChange={(open) => !open && setRemovingMemberId(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove Committee Member</DialogTitle>
+            <DialogDescription>
+              This will revoke the role assignment. The member will no longer
+              appear in this committee.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRemovingMemberId(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={revokeRoleMutation.isPending}
+              onClick={() => {
+                if (!removingMemberId) return;
+                revokeRoleMutation.mutate(
+                  { id: removingMemberId, reason: "removed_from_committee" },
+                  {
+                    onSuccess: () => {
+                      setRemovingMemberId(null);
+                      setSuccessMessage("Member removed from committee.");
+                    },
+                    onError: (err) => {
+                      setErrorMessage(err.message);
+                      setRemovingMemberId(null);
+                    },
+                  },
+                );
+              }}
+            >
+              {revokeRoleMutation.isPending ? "Removing…" : "Remove"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Grievance Tracker */}
       <Card>

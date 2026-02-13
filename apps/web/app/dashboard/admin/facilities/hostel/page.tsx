@@ -15,6 +15,10 @@ import {
   AlertTriangle,
   Check,
   UserPlus,
+  DoorOpen,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +40,8 @@ import {
 } from "@/lib/hooks/admin/use-hostel";
 import { useStudents } from "@/lib/hooks/admin/use-students";
 import { useFaculty } from "@/lib/hooks/admin/use-faculty";
+import { useScanLogs } from "@/lib/hooks/admin/use-scan-logs";
+import Link from "next/link";
 import type {
   HostelRoomResponse,
   HostelBlockResponse,
@@ -89,6 +95,7 @@ export default function HostelMessPage() {
     type: "success" | "error";
     msg: string;
   } | null>(null);
+  const [gateOpen, setGateOpen] = useState(true);
 
   // -- Data -----------------------------------------------------------------
 
@@ -126,6 +133,12 @@ export default function HostelMessPage() {
   );
 
   const allocate = useAllocateStudent();
+
+  // Gate activity (hostel check-in scan logs)
+  const { data: gateScans } = useScanLogs(
+    { action_type: "hostel_checkin", page_size: 20 },
+    { refetchInterval: 30_000 },
+  );
 
   // -- Computed -------------------------------------------------------------
 
@@ -337,6 +350,93 @@ export default function HostelMessPage() {
               )}
             </div>
           </div>
+        </div>
+
+        {/* Gate Activity Feed */}
+        <div className="overflow-hidden rounded-xl border border-dark-border bg-dark-surface">
+          <button
+            onClick={() => setGateOpen(!gateOpen)}
+            className="flex w-full items-center justify-between border-b border-dark-border px-6 py-3"
+          >
+            <h3 className="flex items-center gap-2 text-sm font-bold text-white">
+              <DoorOpen className="h-5 w-5 text-emerald-500" />
+              Gate Activity
+              {gateScans && (
+                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-400">
+                  {gateScans.length} recent
+                </span>
+              )}
+            </h3>
+            {gateOpen ? (
+              <ChevronUp className="h-4 w-4 text-gray-400" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-gray-400" />
+            )}
+          </button>
+          {gateOpen && (
+            <div className="divide-y divide-dark-border">
+              {!gateScans || gateScans.length === 0 ? (
+                <p className="px-6 py-6 text-center text-sm text-gray-500">
+                  No recent gate activity
+                </p>
+              ) : (
+                <>
+                  {gateScans.slice(0, 10).map((scan) => {
+                    const time = new Date(scan.scanned_at).toLocaleTimeString("en-IN", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    });
+                    const isFail = scan.validation_result !== "success";
+                    // Check curfew (after 10 PM or before 5 AM)
+                    const hour = new Date(scan.scanned_at).getHours();
+                    const isCurfew = hour >= 22 || hour < 5;
+
+                    return (
+                      <div
+                        key={scan.id}
+                        className={cn(
+                          "flex items-center gap-3 px-6 py-2.5",
+                          isFail
+                            ? "bg-red-500/5"
+                            : isCurfew
+                              ? "bg-amber-500/5"
+                              : "",
+                        )}
+                      >
+                        <span className="text-lg">{isFail ? "\u274C" : "\uD83C\uDFE0"}</span>
+                        <div className="min-w-0 flex-1">
+                          <span className="text-sm text-white">
+                            {isFail ? "Rejected" : "Entry"} — {scan.user_id?.slice(0, 8)}…
+                          </span>
+                          {isFail && scan.rejection_reason && (
+                            <span className="ml-2 text-xs text-red-400">
+                              ({scan.rejection_reason})
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isCurfew && !isFail && (
+                            <span className="rounded border border-amber-500/20 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-400">
+                              Curfew
+                            </span>
+                          )}
+                          <span className="text-xs text-gray-500">{time}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div className="px-6 py-2">
+                    <Link
+                      href="/dashboard/admin/qr/scan-logs?action_type=hostel_checkin"
+                      className="flex items-center gap-1 text-xs text-emerald-500 hover:underline"
+                    >
+                      <ExternalLink className="h-3 w-3" /> View Full Log
+                    </Link>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Main Grid */}

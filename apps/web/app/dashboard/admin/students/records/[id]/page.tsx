@@ -24,6 +24,11 @@ import {
   Folder,
   GraduationCap,
   BookOpen,
+  Smartphone,
+  QrCode,
+  CheckCircle2,
+  XCircle,
+  ExternalLink,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,6 +42,8 @@ import {
   useUpdateStudent,
   useStudentFeeSummary,
 } from "@/lib/hooks/admin/use-students";
+import { useDeviceDetail, useResetDevice } from "@/lib/hooks/admin/use-devices";
+import { useScanLogs } from "@/lib/hooks/admin/use-scan-logs";
 import type { ProfileTab } from "@/types/admin";
 import type { StudentResponse, StudentUpdate } from "@/types/admin-api";
 
@@ -118,6 +125,9 @@ export default function StudentProfilePage() {
       {activeTab === "fees" && <FeeTabContent studentId={student.id} />}
       {activeTab === "documents" && <DocumentsTabPlaceholder />}
       {activeTab === "logbook" && <LogbookTabPlaceholder />}
+      {activeTab === "campus_activity" && (
+        <CampusActivityTabContent studentUserId={student.id} />
+      )}
     </div>
   );
 }
@@ -611,6 +621,273 @@ function FeeTabContent({ studentId }: { studentId: string }) {
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Campus Activity Tab (QR + Device)
+// ---------------------------------------------------------------------------
+
+const SCAN_ICON: Record<string, string> = {
+  mess_entry: "\uD83C\uDF5D",
+  library_checkout: "\uD83D\uDCDA",
+  library_return: "\uD83D\uDCDA",
+  attendance_mark: "\u2705",
+  hostel_checkin: "\uD83C\uDFE0",
+  clinical_posting: "\uD83C\uDFE5",
+  equipment_checkout: "\uD83D\uDD27",
+  event_checkin: "\uD83C\uDFAB",
+  exam_hall_entry: "\uD83D\uDCDD",
+  library_visit: "\uD83D\uDCDA",
+  lab_access: "\uD83E\uDDEA",
+  sports_facility: "\u26BD",
+  parking_entry: "\uD83C\uDD7F\uFE0F",
+  custom: "\uD83D\uDD18",
+};
+
+function CampusActivityTabContent({ studentUserId }: { studentUserId: string }) {
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetReason, setResetReason] = useState("");
+
+  const { data: device, isLoading: deviceLoading } = useDeviceDetail(studentUserId);
+  const { data: scanLogs, isLoading: logsLoading } = useScanLogs(
+    { user_id: studentUserId, page_size: 20 },
+    { refetchInterval: 30_000 },
+  );
+  const resetDevice = useResetDevice();
+
+  const handleReset = () => {
+    if (!resetReason.trim()) return;
+    resetDevice.mutate(
+      { userId: studentUserId, reason: resetReason },
+      {
+        onSuccess: () => {
+          setResetOpen(false);
+          setResetReason("");
+        },
+      },
+    );
+  };
+
+  return (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      {/* Left — Timeline */}
+      <div className="space-y-6 lg:col-span-2">
+        <SectionCard
+          icon={<QrCode className="h-5 w-5 text-emerald-500" />}
+          title="Recent QR Scan History"
+          action={
+            <Link
+              href={`/dashboard/admin/qr/scan-logs?user_id=${studentUserId}`}
+              className="text-xs font-medium text-emerald-500 hover:underline"
+            >
+              View All
+            </Link>
+          }
+        >
+          {logsLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex gap-3">
+                  <div className="h-8 w-8 animate-pulse rounded-full bg-gray-700" />
+                  <div className="flex-1 space-y-1">
+                    <div className="h-4 w-48 animate-pulse rounded bg-gray-700" />
+                    <div className="h-3 w-24 animate-pulse rounded bg-gray-700/60" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : !scanLogs || scanLogs.length === 0 ? (
+            <div className="flex flex-col items-center py-8 text-center">
+              <QrCode className="mb-2 h-8 w-8 text-gray-600" />
+              <p className="text-sm text-gray-500">No scan activity yet</p>
+              <p className="mt-1 text-xs text-gray-600">
+                QR scans will appear here as the student uses campus facilities.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {scanLogs.map((log) => {
+                const isFail = log.validation_result !== "success";
+                const icon = SCAN_ICON[log.action_type] ?? "\uD83D\uDD18";
+                const time = new Date(log.scanned_at).toLocaleTimeString("en-IN", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
+                const date = new Date(log.scanned_at).toLocaleDateString("en-IN", {
+                  day: "2-digit",
+                  month: "short",
+                });
+                const label = log.action_type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+                return (
+                  <div
+                    key={log.id}
+                    className={cn(
+                      "flex items-start gap-3 rounded-lg px-3 py-2 transition-colors",
+                      isFail ? "bg-red-500/5" : "hover:bg-dark-elevated/50",
+                    )}
+                  >
+                    <span className="mt-0.5 text-lg leading-none">{icon}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className={cn("text-sm font-medium", isFail ? "text-red-400" : "text-white")}>
+                          {label}
+                        </span>
+                        {isFail ? (
+                          <XCircle className="h-3.5 w-3.5 text-red-500" />
+                        ) : (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {isFail && log.rejection_reason
+                          ? `${log.rejection_reason} — `
+                          : ""}
+                        {date} at {time}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </SectionCard>
+      </div>
+
+      {/* Right — Device Status */}
+      <div className="space-y-6">
+        <SectionCard
+          icon={<Smartphone className="h-5 w-5 text-emerald-500" />}
+          title="Registered Device"
+        >
+          {deviceLoading ? (
+            <div className="space-y-3">
+              <div className="h-4 w-32 animate-pulse rounded bg-gray-700" />
+              <div className="h-4 w-48 animate-pulse rounded bg-gray-700/60" />
+            </div>
+          ) : !device ? (
+            <div className="flex flex-col items-center py-6 text-center">
+              <Smartphone className="mb-2 h-8 w-8 text-gray-600" />
+              <p className="text-sm text-gray-500">No registered device</p>
+              <p className="mt-1 text-xs text-gray-600">
+                Device will be registered on first QR scan from the mobile app.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Device</span>
+                  <span className="text-sm font-medium text-white">
+                    {device.device_model || "Unknown"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Platform</span>
+                  <span className="text-sm text-white">
+                    {device.platform || "—"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Status</span>
+                  <span
+                    className={cn(
+                      "rounded border px-2 py-0.5 text-xs",
+                      device.status === "active"
+                        ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+                        : "border-red-500/20 bg-red-500/10 text-red-400",
+                    )}
+                  >
+                    {device.status}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Last Active</span>
+                  <span className="text-sm text-white">
+                    {device.last_active_at
+                      ? new Date(device.last_active_at).toLocaleDateString("en-IN", {
+                          day: "2-digit",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "—"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Total Scans</span>
+                  <span className="text-sm font-medium text-white">
+                    {device.total_qr_scans ?? 0}
+                  </span>
+                </div>
+              </div>
+
+              {device.status === "active" && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full border-red-800 text-red-400 hover:bg-red-900/20"
+                    onClick={() => setResetOpen(true)}
+                  >
+                    <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                    Reset Device
+                  </Button>
+
+                  {resetOpen && (
+                    <div className="space-y-2 rounded-lg border border-dark-border bg-dark-elevated/50 p-3">
+                      <p className="text-xs text-gray-400">
+                        Reason for reset:
+                      </p>
+                      <input
+                        type="text"
+                        value={resetReason}
+                        onChange={(e) => setResetReason(e.target.value)}
+                        placeholder="e.g. Lost device, new phone..."
+                        className="w-full rounded border border-dark-border bg-dark-elevated px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:border-emerald-500 focus:outline-none"
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => { setResetOpen(false); setResetReason(""); }}
+                          className="flex-1"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={handleReset}
+                          disabled={!resetReason.trim() || resetDevice.isPending}
+                          className="flex-1 bg-red-600 hover:bg-red-700"
+                        >
+                          {resetDevice.isPending ? "Resetting..." : "Confirm"}
+                        </Button>
+                      </div>
+                      {resetDevice.isError && (
+                        <p className="text-xs text-red-400">
+                          {resetDevice.error.message}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </SectionCard>
+
+        {/* Link to full scan logs */}
+        <Link
+          href={`/dashboard/admin/qr/scan-logs?user_id=${studentUserId}`}
+          className="flex items-center gap-2 rounded-lg border border-dark-border bg-dark-surface p-4 text-sm text-gray-400 transition-colors hover:border-emerald-500/30 hover:text-emerald-400"
+        >
+          <ExternalLink className="h-4 w-4" />
+          View full scan history
+        </Link>
       </div>
     </div>
   );

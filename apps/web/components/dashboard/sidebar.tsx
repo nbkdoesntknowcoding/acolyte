@@ -38,6 +38,10 @@ import {
   FileText,
   ShieldCheck,
   Settings,
+  Smartphone,
+  QrCode,
+  ScanLine,
+  BarChart3,
 } from 'lucide-react';
 import type { UserRole } from '@/lib/auth';
 import type { LucideIcon } from 'lucide-react';
@@ -139,6 +143,23 @@ const ADMIN_NAV: NavSection[] = [
           { label: 'Infrastructure', href: '/dashboard/admin/facilities/infrastructure', icon: Wrench },
         ],
       },
+    ],
+  },
+  {
+    title: 'Campus Operations',
+    items: [
+      { label: 'Device Management', href: '/dashboard/admin/devices', icon: Smartphone },
+      {
+        label: 'QR Engine',
+        href: '/dashboard/admin/qr',
+        icon: QrCode,
+        children: [
+          { label: 'Action Points', href: '/dashboard/admin/qr', icon: QrCode },
+          { label: 'Scan Logs', href: '/dashboard/admin/qr/scan-logs', icon: ScanLine },
+          { label: 'Analytics', href: '/dashboard/admin/qr/analytics', icon: BarChart3 },
+        ],
+      },
+      { label: 'Role Assignments', href: '/dashboard/admin/role-assignments', icon: Users },
     ],
   },
   {

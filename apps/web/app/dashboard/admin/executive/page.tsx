@@ -13,6 +13,8 @@ import {
   ArrowRight,
   Loader2,
   AlertCircle as AlertCircleIcon,
+  Smartphone,
+  QrCode,
 } from 'lucide-react';
 import {
   BarChart,
@@ -29,6 +31,11 @@ import {
   useComplianceHeatmap,
   useActionItems,
 } from '@/lib/hooks/admin/use-executive';
+import { useDeviceStats } from '@/lib/hooks/admin/use-devices';
+import { useScanLogSummary } from '@/lib/hooks/admin/use-scan-logs';
+import {
+  useDashboardStats,
+} from '@/lib/hooks/admin/use-dashboard';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -58,6 +65,11 @@ export default function ExecutiveDashboardPage() {
     isLoading: actionItemsLoading,
     error: actionItemsError,
   } = useActionItems();
+
+  // Digital Campus Adoption
+  const { data: deviceStats } = useDeviceStats();
+  const { data: monthlySummary } = useScanLogSummary(30);
+  const { data: dashStats } = useDashboardStats();
 
   // ---------------------------------------------------------------------------
   // Derived data
@@ -522,6 +534,80 @@ export default function ExecutiveDashboardPage() {
               </table>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Digital Campus Adoption */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <QrCode className="h-5 w-5 text-emerald-500" />
+            Digital Campus Adoption
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {(() => {
+            const totalUsers = (dashStats?.students?.total ?? 0) + (dashStats?.faculty?.total ?? 0);
+            const registered = deviceStats?.total_registered ?? 0;
+            const adoptionPct = totalUsers > 0 ? Math.round((registered / totalUsers) * 100) : 0;
+            const totalScans = monthlySummary?.data?.reduce((s, d) => s + d.count, 0) ?? 0;
+            const successRate = deviceStats
+              ? Math.round(((deviceStats.total_registered - (deviceStats.revoked_count ?? 0)) / Math.max(deviceStats.total_registered, 1)) * 100)
+              : 0;
+
+            // Most used action type
+            const typeMap = new Map<string, number>();
+            monthlySummary?.data?.forEach((d) => {
+              typeMap.set(d.action_type, (typeMap.get(d.action_type) ?? 0) + d.count);
+            });
+            let topType = 'N/A';
+            let topCount = 0;
+            typeMap.forEach((count, type) => {
+              if (count > topCount) { topType = type; topCount = count; }
+            });
+            const topLabel = topType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+            return (
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                <div className="rounded-lg border border-[#1E1E1E] bg-[#141414] p-4">
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="h-4 w-4 text-blue-400" />
+                    <p className="text-xs text-gray-400">Device Adoption</p>
+                  </div>
+                  <p className="mt-2 text-2xl font-bold text-white">{adoptionPct}%</p>
+                  <p className="text-xs text-gray-500">
+                    {registered} / {totalUsers} users
+                  </p>
+                </div>
+                <div className="rounded-lg border border-[#1E1E1E] bg-[#141414] p-4">
+                  <div className="flex items-center gap-2">
+                    <QrCode className="h-4 w-4 text-emerald-400" />
+                    <p className="text-xs text-gray-400">Scans This Month</p>
+                  </div>
+                  <p className="mt-2 text-2xl font-bold text-white">
+                    {totalScans.toLocaleString('en-IN')}
+                  </p>
+                  <p className="text-xs text-gray-500">Last 30 days</p>
+                </div>
+                <div className="rounded-lg border border-[#1E1E1E] bg-[#141414] p-4">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-purple-400" />
+                    <p className="text-xs text-gray-400">Top Action</p>
+                  </div>
+                  <p className="mt-2 text-lg font-bold text-white">{topLabel}</p>
+                  <p className="text-xs text-gray-500">{topCount.toLocaleString('en-IN')} scans</p>
+                </div>
+                <div className="rounded-lg border border-[#1E1E1E] bg-[#141414] p-4">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-emerald-400" />
+                    <p className="text-xs text-gray-400">Success Rate</p>
+                  </div>
+                  <p className="mt-2 text-2xl font-bold text-white">{successRate}%</p>
+                  <p className="text-xs text-gray-500">Active devices</p>
+                </div>
+              </div>
+            );
+          })()}
         </CardContent>
       </Card>
 

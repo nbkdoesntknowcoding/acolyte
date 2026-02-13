@@ -7,6 +7,7 @@ import {
   Receipt,
   Folder,
   BookOpen,
+  QrCode,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ProfileTab } from "@/types/admin";
@@ -42,6 +43,11 @@ const TABS: { id: ProfileTab; label: string; icon: React.ReactNode }[] = [
     id: "logbook",
     label: "Logbook",
     icon: <BookOpen className="mr-2 h-5 w-5" />,
+  },
+  {
+    id: "campus_activity",
+    label: "Campus Activity",
+    icon: <QrCode className="mr-2 h-5 w-5" />,
   },
 ];
 

@@ -206,7 +206,8 @@ export type ProfileTab =
   | "attendance"
   | "fees"
   | "documents"
-  | "logbook";
+  | "logbook"
+  | "campus_activity";
 
 export interface StudentProfile {
   id: string;
@@ -1474,4 +1475,210 @@ export interface GranularAccessModule {
   enabled: boolean;
   dimmed: boolean;
   actions: { label: string; checked: boolean }[];
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Device Trust
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface DeviceInfo {
+  platform: "android" | "ios";
+  device_id: string;
+  device_model: string;
+  device_manufacturer: string;
+  os_version: string;
+  app_version: string;
+  screen_width: number;
+  screen_height: number;
+  ram_mb: number;
+  sim_operator: string;
+  sim_country: string;
+}
+
+export interface DeviceTrust {
+  id: string;
+  user_id: string;
+  device_fingerprint: string;
+  platform: string;
+  device_model: string;
+  device_manufacturer: string;
+  os_version: string;
+  app_version: string;
+  sim_operator: string;
+  status: "pending_sms_verification" | "active" | "revoked" | "expired" | "transferred" | "verification_failed" | "suspended";
+  claimed_phone: string;
+  verified_phone: string | null;
+  sms_verified: boolean;
+  last_active_at: string | null;
+  total_qr_scans: number;
+  last_qr_scan_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DeviceResetLog {
+  id: string;
+  user_id: string;
+  device_trust_id: string;
+  reset_by: string;
+  reset_reason: string;
+  admin_notes: string | null;
+  reset_at: string;
+}
+
+export interface FlaggedUser {
+  user_id: string;
+  user_name: string;
+  reset_count: number;
+  last_reset_at: string;
+  current_status: string;
+}
+
+export interface DeviceStats {
+  total_registered: number;
+  active_count: number;
+  revoked_count: number;
+  pending_count: number;
+  by_platform: { android: number; ios: number };
+  registrations_this_week: number;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// QR Engine
+// ═══════════════════════════════════════════════════════════════════════════
+
+export type QRActionType = "mess_entry" | "hostel_checkin" | "library_visit" | "library_checkout" | "library_return" | "attendance_mark" | "equipment_checkout" | "event_checkin" | "exam_hall_entry" | "transport_boarding" | "clinical_posting" | "fee_payment" | "visitor_entry" | "certificate_verify";
+
+export type QRMode = "mode_a" | "mode_b";
+export type SecurityLevel = "standard" | "elevated" | "strict";
+
+export interface QRActionPoint {
+  id: string;
+  college_id: string;
+  name: string;
+  description: string | null;
+  action_type: QRActionType;
+  location_code: string;
+  qr_mode: QRMode;
+  building: string | null;
+  floor: number | null;
+  gps_latitude: number | null;
+  gps_longitude: number | null;
+  geo_radius_meters: number;
+  qr_rotation_minutes: number;
+  duplicate_window_minutes: number;
+  linked_entity_type: string | null;
+  linked_entity_id: string | null;
+  security_level: SecurityLevel;
+  active_hours_start: string | null;
+  active_hours_end: string | null;
+  active_days: number[];
+  metadata: Record<string, unknown>;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QRScanLog {
+  id: string;
+  college_id: string;
+  user_id: string;
+  user_type: string;
+  device_trust_id: string | null;
+  action_type: QRActionType;
+  action_point_id: string;
+  qr_mode: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  metadata: Record<string, unknown>;
+  scan_latitude: number | null;
+  scan_longitude: number | null;
+  geo_validated: boolean | null;
+  device_validated: boolean;
+  biometric_confirmed: boolean;
+  validation_result: "success" | "device_mismatch" | "expired_token" | "geo_violation" | "time_violation" | "duplicate_scan" | "revoked_device" | "unauthorized" | "invalid_qr" | "no_handler";
+  rejection_reason: string | null;
+  scanned_at: string;
+}
+
+export interface ScanLogSummary {
+  date: string;
+  action_type: string;
+  success_count: number;
+  failure_count: number;
+  total: number;
+}
+
+export interface ActionPointStats {
+  total_scans: number;
+  success_rate: number;
+  scans_today: number;
+  scans_this_week: number;
+  peak_hour: number;
+  most_common_failure: string | null;
+  daily_trend: { date: string; count: number }[];
+}
+
+export interface GeneratedQR {
+  qr_data: string;
+  qr_image_base64: string;
+  action_point_name: string;
+  location_code: string;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Dynamic Roles
+// ═══════════════════════════════════════════════════════════════════════════
+
+export type DynamicRoleType = "committee_chair" | "committee_member" | "committee_secretary" | "committee_external" | "class_representative" | "exam_invigilator" | "rotation_supervisor" | "mentor" | "duty_warden" | "event_coordinator" | "ncc_officer" | "nss_coordinator" | "sports_incharge" | "temporary_admin" | "audit_viewer";
+
+export interface DynamicRoleAssignment {
+  id: string;
+  college_id: string;
+  user_id: string;
+  user_type: string;
+  user_name: string;
+  role_type: DynamicRoleType;
+  context_type: string;
+  context_id: string;
+  context_name: string;
+  valid_from: string;
+  valid_until: string | null;
+  is_active: boolean;
+  assigned_by: string | null;
+  assigned_by_name: string | null;
+  assignment_order_url: string | null;
+  permissions: string[];
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CommitteeMeeting {
+  id: string;
+  committee_id: string;
+  title: string;
+  description: string | null;
+  meeting_date: string;
+  location: string | null;
+  agenda: { item: string; presenter?: string }[];
+  minutes_text: string | null;
+  minutes_file_url: string | null;
+  attendees: { user_id: string; name: string; present: boolean }[];
+  quorum_met: boolean | null;
+  status: "scheduled" | "in_progress" | "completed" | "cancelled";
+  created_at: string;
+}
+
+export interface CommitteeActionItem {
+  id: string;
+  committee_id: string;
+  meeting_id: string | null;
+  title: string;
+  description: string | null;
+  assigned_to: string | null;
+  assigned_to_name: string | null;
+  due_date: string | null;
+  status: "pending" | "in_progress" | "completed" | "overdue";
+  completed_at: string | null;
 }

@@ -60,6 +60,25 @@ class Settings(BaseSettings):
     LANGFUSE_PUBLIC_KEY: str = ""
     LANGFUSE_HOST: str = "http://localhost:3000"
 
+    # --- AQP: Device Trust ---
+    DEVICE_TRUST_SECRET: str = ""  # HS256 key for device trust JWTs (min 32 chars)
+    QR_TOKEN_SECRET: str = ""  # HS256 key for QR identity tokens (min 32 chars)
+    QR_ACTION_POINT_SECRET: str = ""  # HMAC key for Mode B action point signatures
+    DEVICE_TOKEN_EXPIRY_DAYS: int = 180
+    QR_IDENTITY_TOKEN_EXPIRY_SECONDS: int = 300
+    QR_IDENTITY_REFRESH_SECONDS: int = 60
+    DEVICE_RESET_FLAG_THRESHOLD: int = 3  # Flag after N resets in 30 days
+
+    # --- AQP: SMS Gateway ---
+    SMS_GATEWAY_PROVIDER: str = "mock"  # "msg91" | "kaleyra" | "mock"
+    MSG91_API_KEY: str = ""
+    MSG91_SENDER_ID: str = "ACOLYT"  # 6-char DLT sender ID
+    MSG91_VIRTUAL_NUMBER: str = ""  # Virtual mobile number for incoming SMS
+    MSG91_DLT_TEMPLATE_ID: str = ""
+    MSG91_WEBHOOK_SECRET: str = ""  # Shared secret for webhook validation
+    KALEYRA_API_KEY: str = ""  # Fallback gateway
+    KALEYRA_SID: str = ""
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]

@@ -20,6 +20,7 @@ from app.engines.admin.services import (
     ReceiptGeneratorService,
     ScholarshipMatcherService,
 )
+from app.engines.admin.services.qr_handlers import register_admin_qr_handlers
 
 __all__ = [
     # Router
@@ -37,4 +38,6 @@ __all__ = [
     "get_faculty_roster",
     "get_faculty_count_by_department",
     "get_student_count",
+    # QR handler registration
+    "register_admin_qr_handlers",
 ]

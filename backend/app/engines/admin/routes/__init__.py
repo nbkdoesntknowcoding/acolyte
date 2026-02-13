@@ -31,6 +31,10 @@ from app.engines.admin.routes.students import router as students_router
 from app.engines.admin.routes.timetable import router as timetable_router
 from app.engines.admin.routes.transport import router as transport_router
 from app.engines.admin.routes.workflows import router as workflows_router
+from app.engines.admin.routes.devices import router as devices_router
+from app.engines.admin.routes.qr_admin import router as qr_admin_router
+from app.engines.admin.routes.role_assignments import router as role_assignments_router
+from app.engines.admin.routes.admin_committees import router as admin_committees_router
 
 # Master admin router — all sub-routers mounted here
 admin_router = APIRouter()
@@ -60,3 +64,7 @@ admin_router.include_router(timetable_router, prefix="/timetable", tags=["Admin 
 admin_router.include_router(rotations_router, prefix="/rotations", tags=["Admin - Rotations"])
 admin_router.include_router(executive_router, prefix="/executive", tags=["Admin - Executive"])
 admin_router.include_router(settings_router, prefix="/settings", tags=["Admin - Settings"])
+admin_router.include_router(devices_router, prefix="/devices", tags=["Admin - Devices"])
+admin_router.include_router(qr_admin_router, prefix="/qr", tags=["Admin - QR Management"])
+admin_router.include_router(role_assignments_router, prefix="/role-assignments", tags=["Admin - Role Assignments"])
+admin_router.include_router(admin_committees_router, prefix="/committees", tags=["Admin - Committees"])

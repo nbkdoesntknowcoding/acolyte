@@ -16,6 +16,13 @@ import {
   CalendarDays,
   Mail,
   Activity,
+  QrCode,
+  UtensilsCrossed,
+  BookOpen,
+  Building2,
+  CheckCircle2,
+  XCircle,
+  ArrowRight,
 } from "lucide-react";
 import {
   BarChart,
@@ -57,6 +64,8 @@ import type {
   PendingApprovalItem,
   RecentActivityItem,
 } from "@/lib/hooks/admin/use-dashboard";
+import { useScanLogs, useScanLogSummary } from "@/lib/hooks/admin/use-scan-logs";
+import Link from "next/link";
 
 // ---------------------------------------------------------------------------
 // Month name helper
@@ -262,6 +271,17 @@ export default function AdminDashboard() {
   const approvalsQuery = usePendingApprovals(5);
   const activityQuery = useRecentActivity(5);
   const distributionQuery = useStudentDistribution();
+
+  // Campus Activity (QR)
+  const todayISO = format(new Date(), "yyyy-MM-dd");
+  const { data: summaryData } = useScanLogSummary(1);
+  const { data: recentScans } = useScanLogs({ page_size: 5 }, { refetchInterval: 30_000 });
+
+  // Derive today's counts from summary (day=1 gives last 24h data)
+  const todayMess = summaryData?.data?.filter((d) => d.action_type === "mess_entry").reduce((s, d) => s + d.count, 0) ?? 0;
+  const todayLibrary = summaryData?.data?.filter((d) => d.action_type === "library_checkout").reduce((s, d) => s + d.count, 0) ?? 0;
+  const todayAttendance = summaryData?.data?.filter((d) => d.action_type === "attendance_mark").reduce((s, d) => s + d.count, 0) ?? 0;
+  const todayHostel = summaryData?.data?.filter((d) => d.action_type === "hostel_checkin").reduce((s, d) => s + d.count, 0) ?? 0;
 
   const stats = statsQuery.data;
 
@@ -529,6 +549,77 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Campus Activity (Live) */}
+      <Card className="overflow-hidden">
+        <div className="flex items-center justify-between border-b border-dark-border p-4">
+          <h3 className="flex items-center gap-2 text-sm font-bold text-white">
+            <QrCode className="h-4 w-4 text-emerald-500" />
+            Campus Activity (Live)
+          </h3>
+          <Link href="/dashboard/admin/qr/analytics" className="flex items-center gap-1 text-xs text-emerald-500 hover:underline">
+            View Analytics <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
+        <CardContent className="p-4">
+          {/* Today's numbers */}
+          <div className="mb-4 grid grid-cols-4 gap-3">
+            <div className="flex items-center gap-2 rounded-lg border border-dark-border bg-dark-elevated/30 p-3">
+              <UtensilsCrossed className="h-4 w-4 text-orange-400" />
+              <div>
+                <p className="text-lg font-bold text-white">{todayMess}</p>
+                <p className="text-[10px] text-gray-500">Mess</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 rounded-lg border border-dark-border bg-dark-elevated/30 p-3">
+              <BookOpen className="h-4 w-4 text-blue-400" />
+              <div>
+                <p className="text-lg font-bold text-white">{todayLibrary}</p>
+                <p className="text-[10px] text-gray-500">Library</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 rounded-lg border border-dark-border bg-dark-elevated/30 p-3">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+              <div>
+                <p className="text-lg font-bold text-white">{todayAttendance}</p>
+                <p className="text-[10px] text-gray-500">Attendance</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 rounded-lg border border-dark-border bg-dark-elevated/30 p-3">
+              <Building2 className="h-4 w-4 text-purple-400" />
+              <div>
+                <p className="text-lg font-bold text-white">{todayHostel}</p>
+                <p className="text-[10px] text-gray-500">Hostel</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Mini timeline */}
+          {recentScans && recentScans.length > 0 ? (
+            <div className="space-y-1">
+              {recentScans.map((scan) => {
+                const isFail = scan.validation_result !== "success";
+                const label = scan.action_type.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+                const time = new Date(scan.scanned_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+                return (
+                  <div key={scan.id} className="flex items-center gap-2 px-2 py-1.5 text-xs">
+                    {isFail ? (
+                      <XCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />
+                    ) : (
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                    )}
+                    <span className={isFail ? "text-red-400" : "text-white"}>{label}</span>
+                    <span className="flex-1 text-gray-600">·</span>
+                    <span className="text-gray-500">{time}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-center text-xs text-gray-500">No recent QR activity</p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Tables Row */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
