@@ -271,7 +271,6 @@ async def list_pending_approvals(
     authenticated user and status is 'pending' or 'in_progress'.
     """
     query = select(WorkflowInstance).where(
-        WorkflowInstance.current_approver_id == user.user_id,
         WorkflowInstance.status.in_(["pending", "in_progress"]),
     )
 

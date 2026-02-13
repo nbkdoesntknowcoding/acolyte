@@ -45,8 +45,8 @@ async def get_pending_approvals(
     user: CurrentUser = Depends(get_current_user),
     service: DashboardAggregatorService = Depends(_get_service),
 ):
-    """Pending approvals for current user."""
-    return await service.get_pending_approvals(user_id=user.user_id, limit=limit)
+    """Pending approvals (all pending within the tenant, scoped by RLS)."""
+    return await service.get_pending_approvals(user_id=None, limit=limit)
 
 
 @router.get("/recent-activity")
