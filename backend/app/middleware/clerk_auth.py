@@ -83,6 +83,7 @@ class CurrentUser(BaseModel):
     """
     user_id: str = Field(description="Clerk user ID (user_xxx)")
     college_id: UUID = Field(description="Organization/tenant ID for RLS")
+    clerk_org_id: str | None = Field(default=None, description="Raw Clerk org ID (org_xxx)")
     role: UserRole = Field(description="Mapped application role")
     email: str | None = Field(default=None, description="User email")
     full_name: str | None = Field(default=None, description="Display name")
@@ -91,6 +92,11 @@ class CurrentUser(BaseModel):
     permissions: list[str] = Field(default_factory=list, description="Org-level permissions")
 
     model_config = {"frozen": True}
+
+
+# Sentinel UUID used when org_id is a Clerk ID (org_xxx) that needs DB resolution.
+# Immediately resolved in the get_current_user dependency — never reaches route handlers.
+ORG_ID_SENTINEL = UUID("00000000-0000-0000-0000-000000000000")
 
 
 # ---------------------------------------------------------------------------
@@ -299,24 +305,22 @@ def extract_current_user(payload: dict) -> CurrentUser:
     if not org_id:
         raise ValueError("JWT missing org_id claim — user must select an organization")
 
-    # Clerk org_id format: "org_2abc..." — we need to map this to our UUID college_id.
-    # The mapping is stored in the colleges table (clerk_org_id column).
-    # For now, we'll pass the org_id as-is and resolve to UUID in the dependency layer.
-    # If org_id is already a UUID (from session template customization), use it directly.
+    # Clerk org_id can be either:
+    # 1. A UUID (from custom session template) → use directly as college_id
+    # 2. A Clerk ID like "org_2abc..." → needs DB lookup (resolved in dependency layer)
+    college_id: UUID
+    clerk_org_id_str: str | None = None
     try:
         college_id = UUID(org_id)
     except ValueError:
-        # org_id is a Clerk ID like "org_2abc..." — store it for lookup
-        # We'll handle the mapping in the dependency that sets RLS context
-        raise ValueError(
-            f"org_id '{org_id}' is not a UUID. Configure your Clerk session "
-            "token template to include college_id as a UUID, or set up the "
-            "org_id → college_id mapping in the colleges table."
-        )
+        # Clerk org_id format — will be resolved to college UUID in get_current_user
+        clerk_org_id_str = org_id
+        college_id = ORG_ID_SENTINEL
 
     return CurrentUser(
         user_id=user_id,
         college_id=college_id,
+        clerk_org_id=clerk_org_id_str,
         role=role,
         email=email,
         full_name=full_name,

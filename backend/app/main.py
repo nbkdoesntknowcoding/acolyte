@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import IntegrityError
 
 from app.config import get_settings
+from app.core.clerk_client import ClerkClient
 from app.core.permify.client import PermifyClient
 from app.dependencies.auth import get_current_user
 from app.middleware.clerk_auth import CurrentUser
@@ -71,12 +72,18 @@ async def lifespan(app: FastAPI):
             permify._base_url,
         )
 
+    # --- Clerk API client ---
+    clerk = ClerkClient(settings)
+    app.state.clerk = clerk
+    logger.info("Clerk API client initialized")
+
     if redis_ok and healthy:
         logger.info("All dependencies ready — Celery worker/beat can process tasks")
 
     yield
 
     # Shutdown
+    await clerk.close()
     await permify.close()
     logger.info("Shutting down Acolyte API")
 

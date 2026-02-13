@@ -81,6 +81,12 @@ class College(Base):
     # fee_regulatory_authority, state_fee_cap_rules, attendance_thresholds,
     # teaching_weeks_per_year (default 39), working_days_per_week (default 6)
 
+    # Clerk organization mapping
+    clerk_org_id = Column(String(255), unique=True, nullable=True,
+                          comment="Clerk organization ID (org_xxx)")
+    allowed_domains = Column(JSONB, server_default="[]", nullable=False,
+                             comment='Email domains that auto-join this org')
+
     status = Column(String(20), server_default="active")
     created_at = Column(DateTime(timezone=True), server_default=text("NOW()"))
 
