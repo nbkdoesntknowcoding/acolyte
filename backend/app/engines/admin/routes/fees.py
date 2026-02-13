@@ -16,11 +16,15 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies.auth import get_current_user, get_tenant_db, require_role
-from app.engines.admin.models import FeePayment, FeeStructure, Student
+from app.engines.admin.models import FeePayment, FeeRefund, FeeStructure, Student
 from app.engines.admin.schemas import (
     FeePaymentCreate,
     FeePaymentListResponse,
     FeePaymentResponse,
+    FeeRefundCreate,
+    FeeRefundListResponse,
+    FeeRefundResponse,
+    FeeRefundUpdate,
     FeeStructureCreate,
     FeeStructureListResponse,
     FeeStructureResponse,
@@ -438,3 +442,173 @@ async def get_collection_summary(
     Management, NRI) along with collection percentages and grand totals.
     """
     return await service.get_collection_summary(academic_year=academic_year)
+
+
+# ===================================================================
+# Fee Refunds CRUD
+# ===================================================================
+
+
+# ---------------------------------------------------------------------------
+# GET /refunds — list refunds with filters
+# ---------------------------------------------------------------------------
+
+@router.get("/refunds", response_model=FeeRefundListResponse)
+async def list_refunds(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=100),
+    status: str | None = Query(None, description="Filter by status"),
+    reason: str | None = Query(None, description="Filter by reason"),
+    user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """List fee refunds with pagination and filters.
+
+    Filters can be combined. Defaults to returning all refunds.
+    """
+    query = select(FeeRefund)
+
+    if status is not None:
+        query = query.where(FeeRefund.status == status)
+
+    if reason is not None:
+        query = query.where(FeeRefund.reason == reason)
+
+    # Count total
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar_one()
+
+    # Paginate
+    offset = (page - 1) * page_size
+    query = (
+        query
+        .order_by(FeeRefund.created_at.desc())
+        .offset(offset)
+        .limit(page_size)
+    )
+
+    result = await db.execute(query)
+    refunds = result.scalars().all()
+
+    return FeeRefundListResponse(
+        data=[FeeRefundResponse.model_validate(r) for r in refunds],
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=math.ceil(total / page_size) if total > 0 else 0,
+    )
+
+
+# ---------------------------------------------------------------------------
+# GET /refunds/{refund_id} — get single refund
+# ---------------------------------------------------------------------------
+
+@router.get("/refunds/{refund_id}", response_model=FeeRefundResponse)
+async def get_refund(
+    refund_id: UUID,
+    user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Get a single refund by ID."""
+    query = select(FeeRefund).where(FeeRefund.id == refund_id)
+    result = await db.execute(query)
+    refund = result.scalar_one_or_none()
+
+    if not refund:
+        raise NotFoundException(f"Refund {refund_id} not found")
+
+    return FeeRefundResponse.model_validate(refund)
+
+
+# ---------------------------------------------------------------------------
+# POST /refunds — create refund request
+# ---------------------------------------------------------------------------
+
+@router.post("/refunds", response_model=FeeRefundResponse)
+async def create_refund(
+    data: FeeRefundCreate,
+    user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Create a new refund request.
+
+    Requires: Admin, Dean, or Management role.
+    Status is initialized to 'requested'.
+    """
+    # Verify student exists (RLS ensures same tenant)
+    student_query = select(Student).where(Student.id == data.student_id)
+    student_result = await db.execute(student_query)
+    student = student_result.scalar_one_or_none()
+    if not student:
+        raise NotFoundException(f"Student {data.student_id} not found")
+
+    # Create refund
+    refund = FeeRefund(
+        college_id=user.college_id,
+        student_id=data.student_id,
+        original_payment_id=data.original_payment_id,
+        reason=data.reason,
+        original_amount_paid=data.original_amount_paid,
+        refund_amount=data.refund_amount,
+        deductions=data.deductions or 0,
+        deduction_breakdown=data.deduction_breakdown,
+        bank_account_number_last4=data.bank_account_number_last4,
+        bank_ifsc=data.bank_ifsc,
+        bank_name=data.bank_name,
+        account_holder_name=data.account_holder_name,
+        status="requested",
+        expected_completion_date=data.expected_completion_date,
+        notes=data.notes,
+    )
+
+    db.add(refund)
+    await db.commit()
+    await db.refresh(refund)
+
+    return FeeRefundResponse.model_validate(refund)
+
+
+# ---------------------------------------------------------------------------
+# PUT /refunds/{refund_id} — update refund (status transitions)
+# ---------------------------------------------------------------------------
+
+@router.put("/refunds/{refund_id}", response_model=FeeRefundResponse)
+async def update_refund(
+    refund_id: UUID,
+    data: FeeRefundUpdate,
+    user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Update a refund (status transitions, NEFT reference, etc.).
+
+    Requires: Admin, Dean, or Management role.
+    Supports partial updates via exclude_unset.
+    """
+    # Get existing refund
+    query = select(FeeRefund).where(FeeRefund.id == refund_id)
+    result = await db.execute(query)
+    refund = result.scalar_one_or_none()
+
+    if not refund:
+        raise NotFoundException(f"Refund {refund_id} not found")
+
+    # Update fields (partial update)
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(refund, field, value)
+
+    # Auto-set timestamps for status transitions
+    if data.status == "approved" and not refund.approved_at:
+        from datetime import datetime
+        refund.approved_at = datetime.utcnow()
+        refund.approved_by = user.id
+
+    if data.status == "completed" and not refund.processed_at:
+        from datetime import datetime
+        refund.processed_at = datetime.utcnow()
+
+    await db.commit()
+    await db.refresh(refund)
+
+    return FeeRefundResponse.model_validate(refund)
