@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useOrganizationList, useUser, SignOutButton } from '@clerk/nextjs';
-import { useRouter } from 'next/navigation';
 
 /**
  * Onboarding page — handles auto-activation of Clerk organizations.
@@ -10,16 +9,31 @@ import { useRouter } from 'next/navigation';
  * Flow:
  * 1. User signs in → middleware detects no active org → redirects here
  * 2. We check if the user has any org memberships
- * 3. If exactly 1 org → auto-activate it → redirect to dashboard
+ * 3. If exactly 1 org → auto-activate it → hard redirect to dashboard
  * 4. If 0 orgs → show "contact admin" message with domain info
  * 5. If 2+ orgs → show org picker (future)
+ *
+ * CRITICAL: After setActive(), we MUST use window.location.href (hard navigation)
+ * instead of router.replace() (soft navigation). Clerk needs a full page reload
+ * to propagate the org_id into the session cookie and JWT token.
  */
+
+const ROLE_DASHBOARDS: Record<string, string> = {
+  'org:student': '/dashboard/student',
+  'org:faculty': '/dashboard/faculty',
+  'org:hod': '/dashboard/faculty',
+  'org:dean': '/dashboard/management',
+  'org:admin': '/dashboard/admin',
+  'org:compliance_officer': '/dashboard/compliance',
+  'org:management': '/dashboard/management',
+  'org:member': '/dashboard/student',
+};
+
 export default function OnboardingPage() {
   const { user, isLoaded: userLoaded } = useUser();
   const { userMemberships, isLoaded: orgsLoaded, setActive } = useOrganizationList({
     userMemberships: { infinite: true },
   });
-  const router = useRouter();
 
   const [status, setStatus] = useState<'loading' | 'activating' | 'no-org' | 'error'>('loading');
   const [errorMsg, setErrorMsg] = useState('');
@@ -40,19 +54,22 @@ export default function OnboardingPage() {
     // Auto-activate the first (or only) org
     const firstOrg = memberships[0];
     const orgId = firstOrg.organization.id;
+    const orgRole = firstOrg.role;
 
     setStatus('activating');
     setActive({ organization: orgId })
       .then(() => {
-        // Session token now includes org_id — redirect to dashboard
-        router.replace('/dashboard/admin');
+        // HARD navigation — forces full page reload so Clerk refreshes
+        // the session cookie and JWT with the newly activated org_id.
+        const dashboard = ROLE_DASHBOARDS[orgRole] || '/dashboard/admin';
+        window.location.href = dashboard;
       })
       .catch((err: Error) => {
         console.error('Failed to activate organization:', err);
         setErrorMsg(err.message || 'Failed to activate organization');
         setStatus('error');
       });
-  }, [userLoaded, orgsLoaded, userMemberships, setActive, router]);
+  }, [userLoaded, orgsLoaded, userMemberships, setActive]);
 
   // Loading state
   if (status === 'loading' || status === 'activating') {
