@@ -258,11 +258,7 @@ async def verify_clerk_jwt(token: str, settings: Settings | None = None) -> dict
 def extract_current_user(payload: dict) -> CurrentUser:
     """Extract a CurrentUser from a verified JWT payload.
 
-    Supports BOTH Clerk session token formats:"""
-    # TEMPORARY DEBUG — dump full JWT payload to find the actual claim structure
-    logger.warning("=== RAW JWT PAYLOAD KEYS: %s ===", list(payload.keys()))
-    logger.warning("=== RAW JWT PAYLOAD: %s ===", {k: v for k, v in payload.items() if k not in ('iat', 'exp', 'nbf')})
-    """
+    Supports BOTH Clerk session token formats:
 
     V2 (current, April 2025+):
     {
