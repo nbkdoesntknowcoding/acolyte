@@ -3,10 +3,10 @@ import {
   View,
   TextInput,
   Pressable,
-  Text,
   ActivityIndicator,
   StyleSheet,
 } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { colors, radius, spacing, fontSize } from "@/lib/theme";
 
 interface SearchBarProps {
@@ -30,7 +30,6 @@ export function SearchBar({
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const inputRef = useRef<TextInput>(null);
 
-  // Sync external value changes
   useEffect(() => {
     setLocal(value);
   }, [value]);
@@ -59,7 +58,7 @@ export function SearchBar({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.icon}>🔍</Text>
+      <Feather name="search" size={16} color={colors.textMuted} />
       <TextInput
         ref={inputRef}
         style={styles.input}
@@ -80,7 +79,7 @@ export function SearchBar({
       )}
       {local.length > 0 && !loading && (
         <Pressable onPress={handleClear} hitSlop={8} style={styles.clearBtn}>
-          <Text style={styles.clearText}>✕</Text>
+          <Feather name="x" size={14} color={colors.textMuted} />
         </Pressable>
       )}
     </View>
@@ -91,20 +90,18 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.surface,
+    backgroundColor: colors.card,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: spacing.md,
     gap: spacing.sm,
-  },
-  icon: {
-    fontSize: 16,
+    height: 44,
   },
   input: {
     flex: 1,
     fontSize: fontSize.base,
-    color: colors.textPrimary,
+    color: colors.text,
     height: 44,
   },
   loader: {
@@ -112,9 +109,5 @@ const styles = StyleSheet.create({
   },
   clearBtn: {
     padding: spacing.xs,
-  },
-  clearText: {
-    fontSize: fontSize.sm,
-    color: colors.textMuted,
   },
 });

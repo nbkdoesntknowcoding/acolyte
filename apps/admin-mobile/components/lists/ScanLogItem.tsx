@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { colors, spacing, fontSize } from "@/lib/theme";
 import { format } from "date-fns";
 
@@ -17,16 +18,16 @@ interface ScanLogItemProps {
   scannedAt: string;
 }
 
-const ACTION_EMOJI: Record<string, string> = {
-  mess_entry: "🍽️",
-  library_checkout: "📚",
-  library_return: "📚",
-  attendance_mark: "✅",
-  hostel_checkin: "🏠",
-  lab_access: "🔬",
-  exam_hall_entry: "📝",
-  parking_entry: "🅿️",
-  event_checkin: "🎫",
+const ACTION_ICON: Record<string, string> = {
+  mess_entry: "coffee",
+  library_checkout: "book-open",
+  library_return: "book",
+  attendance_mark: "check-square",
+  hostel_checkin: "home",
+  lab_access: "activity",
+  exam_hall_entry: "edit-3",
+  parking_entry: "square",
+  event_checkin: "calendar",
 };
 
 export function ScanLogItem({
@@ -56,8 +57,9 @@ export function ScanLogItem({
       ? colors.textMuted
       : colors.error;
 
-  const statusIcon = isSuccess ? "✅" : isDuplicate ? "⚠️" : "❌";
-  const emoji = ACTION_EMOJI[actionType] ?? "📋";
+  const statusIconName = isSuccess ? "check-circle" : isDuplicate ? "alert-triangle" : "x-circle";
+  const statusIconColor = isSuccess ? colors.success : isDuplicate ? colors.warning : colors.error;
+  const actionIconName = ACTION_ICON[actionType] ?? "file";
   const label = actionType
     .replace(/_/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
@@ -68,7 +70,7 @@ export function ScanLogItem({
     <Pressable onPress={() => setExpanded(!expanded)} style={styles.outer}>
       <View style={[styles.container, { borderLeftColor: borderColor }]}>
         <View style={styles.topRow}>
-          <Text style={styles.statusIcon}>{statusIcon}</Text>
+          <Feather name={statusIconName as any} size={14} color={statusIconColor} />
           <Text style={styles.time}>{time}</Text>
           <Text style={styles.userName} numberOfLines={1}>
             {displayName}
@@ -76,11 +78,16 @@ export function ScanLogItem({
         </View>
 
         <View style={styles.bottomRow}>
-          <Text style={styles.actionLine}>
-            {emoji} {label}
-            {actionPointName ? ` — ${actionPointName}` : ""}
-          </Text>
-          {geoValidated && <Text style={styles.gps}>📍</Text>}
+          <View style={styles.actionLineWrap}>
+            <Feather name={actionIconName as any} size={14} color={colors.textMuted} />
+            <Text style={styles.actionLine}>
+              {label}
+              {actionPointName ? ` — ${actionPointName}` : ""}
+            </Text>
+          </View>
+          {geoValidated && (
+            <Feather name="map-pin" size={12} color={colors.accent} />
+          )}
         </View>
 
         {isFail && rejectionReason && (
@@ -138,9 +145,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
   },
-  statusIcon: {
-    fontSize: 14,
-  },
   time: {
     fontSize: fontSize.sm,
     fontWeight: "600",
@@ -159,13 +163,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingLeft: 22,
   },
+  actionLineWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    flex: 1,
+  },
   actionLine: {
     fontSize: fontSize.sm,
     color: colors.textMuted,
     flex: 1,
-  },
-  gps: {
-    fontSize: 12,
   },
   reason: {
     fontSize: fontSize.xs,

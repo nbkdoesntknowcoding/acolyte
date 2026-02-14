@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { Feather } from "@expo/vector-icons";
 import { colors, spacing, fontSize, radius } from "@/lib/theme";
 import {
   useStudentSearch,
@@ -119,7 +120,7 @@ export default function PeopleScreen() {
       {/* Search bar */}
       <View style={styles.searchWrap}>
         <View style={styles.searchContainer}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <Feather name="search" size={16} color={colors.textMuted} />
           <TextInput
             ref={inputRef}
             style={styles.searchInput}
@@ -141,7 +142,7 @@ export default function PeopleScreen() {
           />
           {search.length > 0 && (
             <Pressable onPress={() => setSearch("")} style={styles.clearBtn}>
-              <Text style={styles.clearText}>✕</Text>
+              <Feather name="x" size={14} color={colors.textMuted} />
             </Pressable>
           )}
         </View>
@@ -177,7 +178,7 @@ export default function PeopleScreen() {
           )}
           {recentSearches.length === 0 && (
             <View style={styles.emptyWrap}>
-              <Text style={styles.emptyEmoji}>🔍</Text>
+              <Feather name="search" size={32} color={colors.textMuted} style={{ marginBottom: spacing.md }} />
               <Text style={styles.emptyTitle}>Search People</Text>
               <Text style={styles.emptyDesc}>
                 Find students or faculty by name, enrollment number, phone, or
@@ -302,7 +303,7 @@ function StudentRow({
           {student.quota ? ` · ${student.quota} Quota` : ""}
         </Text>
       </View>
-      <Text style={styles.chevron}>›</Text>
+      <Feather name="chevron-right" size={16} color={colors.textMuted} />
     </Pressable>
   );
 }
@@ -424,9 +425,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     gap: spacing.sm,
   },
-  searchIcon: {
-    fontSize: 16,
-  },
   searchInput: {
     flex: 1,
     fontSize: fontSize.base,
@@ -435,10 +433,6 @@ const styles = StyleSheet.create({
   },
   clearBtn: {
     padding: spacing.xs,
-  },
-  clearText: {
-    fontSize: fontSize.sm,
-    color: colors.textMuted,
   },
 
   // Recent
@@ -487,10 +481,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingBottom: spacing["4xl"],
     gap: spacing.sm,
-  },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: spacing.md,
   },
   emptyTitle: {
     fontSize: fontSize.lg,
@@ -560,10 +550,5 @@ const styles = StyleSheet.create({
   rowMeta: {
     fontSize: fontSize.xs,
     color: colors.textMuted,
-  },
-  chevron: {
-    fontSize: fontSize.xl,
-    color: colors.textMuted,
-    fontWeight: "300",
   },
 });

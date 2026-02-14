@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   countBadgeActive: {
-    backgroundColor: "rgba(0, 255, 136, 0.20)",
+    backgroundColor: colors.accentBorder,
   },
   countText: {
     fontSize: 9,

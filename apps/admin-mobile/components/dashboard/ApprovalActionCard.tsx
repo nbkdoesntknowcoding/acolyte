@@ -1,4 +1,5 @@
 import { View, Text, Pressable, StyleSheet, Platform } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { colors, radius, spacing, fontSize } from "@/lib/theme";
 
@@ -14,12 +15,12 @@ interface ApprovalActionCardProps {
   isRejecting?: boolean;
 }
 
-const TYPE_EMOJI: Record<string, string> = {
-  leave: "🏖️",
-  certificate: "📜",
-  transfer: "🔄",
-  enrollment: "🎓",
-  fee_waiver: "💰",
+const TYPE_ICON: Record<string, React.ComponentProps<typeof Feather>["name"]> = {
+  leave: "calendar",
+  certificate: "file-text",
+  transfer: "refresh-cw",
+  enrollment: "user-plus",
+  fee_waiver: "dollar-sign",
 };
 
 export function ApprovalActionCard({
@@ -33,7 +34,7 @@ export function ApprovalActionCard({
   isApproving,
   isRejecting,
 }: ApprovalActionCardProps) {
-  const emoji = TYPE_EMOJI[type] ?? "📋";
+  const icon = TYPE_ICON[type] ?? "file";
   const busy = isApproving || isRejecting;
 
   const handleApprove = () => {
@@ -60,7 +61,7 @@ export function ApprovalActionCard({
       ]}
     >
       <View style={styles.header}>
-        <Text style={styles.emoji}>{emoji}</Text>
+        <Feather name={icon} size={20} color={colors.textMuted} />
         <View style={styles.textWrap}>
           <Text style={styles.title} numberOfLines={1}>
             {title}
@@ -117,9 +118,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-  },
-  emoji: {
-    fontSize: 20,
   },
   textWrap: {
     flex: 1,

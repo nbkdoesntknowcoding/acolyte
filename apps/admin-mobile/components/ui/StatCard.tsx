@@ -1,12 +1,18 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { colors, radius, spacing, fontSize } from "@/lib/theme";
+import type { ReactNode } from "react";
+import type { FeatherName } from "./Icon";
 
 interface StatCardProps {
   label: string;
   value: string | number;
   subLabel?: string;
   subColor?: string;
-  progress?: number; // 0-100
+  trend?: "up" | "down" | "neutral";
+  trendValue?: string;
+  icon?: ReactNode;
+  progress?: number;
   progressColor?: string;
   color?: string;
   onPress?: () => void;
@@ -17,6 +23,9 @@ export function StatCard({
   value,
   subLabel,
   subColor,
+  trend,
+  trendValue,
+  icon,
   progress,
   progressColor,
   color,
@@ -24,6 +33,51 @@ export function StatCard({
 }: StatCardProps) {
   const content = (
     <View style={styles.container}>
+      <View style={styles.topRow}>
+        {icon && <View style={styles.iconWrap}>{icon}</View>}
+        {trend && trendValue && (
+          <View
+            style={[
+              styles.trendBadge,
+              {
+                backgroundColor:
+                  trend === "up"
+                    ? "rgba(16, 185, 129, 0.10)"
+                    : trend === "down"
+                      ? "rgba(239, 68, 68, 0.10)"
+                      : "rgba(102, 102, 102, 0.10)",
+              },
+            ]}
+          >
+            <Feather
+              name={trend === "up" ? "trending-up" : trend === "down" ? "trending-down" : "minus"}
+              size={10}
+              color={
+                trend === "up"
+                  ? colors.success
+                  : trend === "down"
+                    ? colors.error
+                    : colors.textMuted
+              }
+            />
+            <Text
+              style={[
+                styles.trendText,
+                {
+                  color:
+                    trend === "up"
+                      ? colors.success
+                      : trend === "down"
+                        ? colors.error
+                        : colors.textMuted,
+                },
+              ]}
+            >
+              {trendValue}
+            </Text>
+          </View>
+        )}
+      </View>
       <Text style={[styles.value, color ? { color } : undefined]}>
         {value}
       </Text>
@@ -40,7 +94,7 @@ export function StatCard({
               styles.progressFill,
               {
                 width: `${Math.min(progress, 100)}%`,
-                backgroundColor: progressColor ?? colors.primary,
+                backgroundColor: progressColor ?? colors.accent,
               },
             ]}
           />
@@ -53,10 +107,7 @@ export function StatCard({
     return (
       <Pressable
         onPress={onPress}
-        style={({ pressed }) => [
-          styles.wrapper,
-          pressed && { opacity: 0.7 },
-        ]}
+        style={({ pressed }) => [styles.wrapper, pressed && { opacity: 0.7 }]}
       >
         {content}
       </Pressable>
@@ -71,18 +122,38 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   container: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: spacing.md,
-    alignItems: "center",
+    padding: spacing.lg,
     gap: spacing.xs,
+  },
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.xs,
+  },
+  iconWrap: {
+    opacity: 0.6,
+  },
+  trendBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+  },
+  trendText: {
+    fontSize: 10,
+    fontWeight: "600",
   },
   value: {
     fontSize: fontSize.xl,
     fontWeight: "700",
-    color: colors.textPrimary,
+    color: colors.text,
   },
   label: {
     fontSize: fontSize.xs,
@@ -97,7 +168,7 @@ const styles = StyleSheet.create({
   progressTrack: {
     width: "100%",
     height: 3,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.cardHover,
     borderRadius: 2,
     marginTop: 2,
     overflow: "hidden",

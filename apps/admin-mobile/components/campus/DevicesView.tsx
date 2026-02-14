@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { View, Text, FlatList, Pressable, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
+import { Feather } from "@expo/vector-icons";
 import { formatDistanceToNow } from "date-fns";
 import { colors, spacing, fontSize, radius } from "@/lib/theme";
 import {
@@ -66,7 +67,8 @@ export function DevicesView() {
             <View style={styles.flaggedSection}>
               <View style={styles.flaggedBanner}>
                 <Text style={styles.flaggedTitle}>
-                  ⚠️ {flaggedCount} account{flaggedCount > 1 ? "s" : ""} flagged
+                  <Feather name="alert-triangle" size={14} color={colors.warning} />{" "}
+                  {flaggedCount} account{flaggedCount > 1 ? "s" : ""} flagged
                   for suspicious resets
                 </Text>
               </View>

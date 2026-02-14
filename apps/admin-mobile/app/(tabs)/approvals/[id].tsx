@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Feather } from "@expo/vector-icons";
 import BottomSheet from "@gorhom/bottom-sheet";
 import * as Haptics from "expo-haptics";
 import { format, eachDayOfInterval, parseISO, isSameDay } from "date-fns";
@@ -111,13 +112,13 @@ export default function ApprovalDetailScreen() {
         <ScrollView contentContainerStyle={styles.content}>
           {/* Back button */}
           <Pressable onPress={() => router.back()} style={styles.backRow}>
-            <Text style={styles.backArrow}>‹</Text>
+            <Feather name="chevron-left" size={20} color={colors.primary} />
             <Text style={styles.backLabel}>Back to Approvals</Text>
           </Pressable>
 
           {/* Header */}
           <View style={styles.detailHeader}>
-            <Text style={styles.detailEmoji}>🏥</Text>
+            <Feather name="activity" size={28} color={colors.textMuted} />
             <View style={styles.detailHeaderText}>
               <Text style={styles.detailName}>{d.faculty_name}</Text>
               <Text style={styles.detailDept}>
@@ -215,7 +216,7 @@ export default function ApprovalDetailScreen() {
               onPress={() => Linking.openURL(`tel:${d.phone}`)}
               style={styles.quickAction}
             >
-              <Text style={styles.quickActionEmoji}>📞</Text>
+              <Feather name="phone" size={20} color={colors.textMuted} />
               <Text style={styles.quickActionText}>Call Requester</Text>
             </Pressable>
           )}
@@ -229,7 +230,7 @@ export default function ApprovalDetailScreen() {
             }
             style={styles.quickAction}
           >
-            <Text style={styles.quickActionEmoji}>👤</Text>
+            <Feather name="user" size={20} color={colors.textMuted} />
             <Text style={styles.quickActionText}>View Profile</Text>
           </Pressable>
         </ScrollView>
@@ -298,13 +299,13 @@ export default function ApprovalDetailScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Back button */}
         <Pressable onPress={() => router.back()} style={styles.backRow}>
-          <Text style={styles.backArrow}>‹</Text>
+          <Feather name="chevron-left" size={20} color={colors.primary} />
           <Text style={styles.backLabel}>Back to Approvals</Text>
         </Pressable>
 
         {/* Header */}
         <View style={styles.detailHeader}>
-          <Text style={styles.detailEmoji}>{isCert ? "📄" : "📋"}</Text>
+          <Feather name={isCert ? "file-text" : "clipboard"} size={28} color={colors.textMuted} />
           <View style={styles.detailHeaderText}>
             <Text style={styles.detailName}>{w.title}</Text>
             <Text style={styles.detailDept}>
@@ -356,7 +357,7 @@ export default function ApprovalDetailScreen() {
             onPress={() => Linking.openURL(`tel:${w.phone}`)}
             style={styles.quickAction}
           >
-            <Text style={styles.quickActionEmoji}>📞</Text>
+            <Feather name="phone" size={20} color={colors.textMuted} />
             <Text style={styles.quickActionText}>Call Requester</Text>
           </Pressable>
         )}
@@ -371,7 +372,7 @@ export default function ApprovalDetailScreen() {
             }
             style={styles.quickAction}
           >
-            <Text style={styles.quickActionEmoji}>👤</Text>
+            <Feather name="user" size={20} color={colors.textMuted} />
             <Text style={styles.quickActionText}>View Profile</Text>
           </Pressable>
         )}
@@ -483,11 +484,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.xs,
   },
-  backArrow: {
-    fontSize: fontSize["2xl"],
-    color: colors.primary,
-    fontWeight: "300",
-  },
   backLabel: {
     fontSize: fontSize.sm,
     color: colors.primary,
@@ -499,10 +495,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: spacing.md,
-  },
-  detailEmoji: {
-    fontSize: 28,
-    marginTop: 2,
   },
   detailHeaderText: {
     flex: 1,
@@ -632,9 +624,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.lg,
-  },
-  quickActionEmoji: {
-    fontSize: 20,
   },
   quickActionText: {
     fontSize: fontSize.base,

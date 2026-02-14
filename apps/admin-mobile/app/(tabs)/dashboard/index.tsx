@@ -1,8 +1,8 @@
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState } from "react";
 import { View, Text, ScrollView, RefreshControl, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import Constants from "expo-constants";
+import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { colors, spacing, fontSize, radius } from "@/lib/theme";
@@ -42,23 +42,6 @@ export default function DashboardScreen() {
   const router = useRouter();
   const qc = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
-
-  // --- Smoke test: backend connectivity (remove after testing) ---
-  const [backendStatus, setBackendStatus] = useState<string>("checking...");
-  useEffect(() => {
-    const apiUrl =
-      Constants.expoConfig?.extra?.apiUrl ??
-      process.env.EXPO_PUBLIC_API_URL ??
-      "https://acolyte-api.fly.dev";
-    fetch(`${apiUrl}/health`)
-      .then((res) => res.json())
-      .then((data) =>
-        setBackendStatus(`Backend: ${data.status ?? "unknown"}`),
-      )
-      .catch((err) =>
-        setBackendStatus(`Backend unreachable: ${err.message}`),
-      );
-  }, []);
 
   // Data hooks
   const { data: me } = useMe();
@@ -156,25 +139,6 @@ export default function DashboardScreen() {
           />
         }
       >
-        {/* ── Smoke test banner (remove after testing) ── */}
-        <Text
-          style={{
-            color: backendStatus.includes("healthy") ? "#22c55e" : "#ef4444",
-            fontSize: 13,
-            fontWeight: "600",
-            textAlign: "center",
-            paddingVertical: 6,
-            backgroundColor: backendStatus.includes("healthy")
-              ? "rgba(34,197,94,0.1)"
-              : "rgba(239,68,68,0.1)",
-            borderRadius: 8,
-            overflow: "hidden",
-          }}
-        >
-          {backendStatus.includes("healthy") ? "\u2705" : "\u274C"}{" "}
-          {backendStatus}
-        </Text>
-
         {/* ── Section 1: Greeting + Date ── */}
         <View style={styles.greetingSection}>
           <Text style={styles.greeting}>
@@ -257,10 +221,10 @@ export default function DashboardScreen() {
         ) : (
           <CampusPulseCard
             items={[
-              { label: "meals", value: todayMess, emoji: "🍽️" },
-              { label: "checkouts", value: todayLibrary, emoji: "📚" },
-              { label: "attendance", value: todayAttendance, emoji: "✅" },
-              { label: "hostel", value: todayHostel, emoji: "🏠" },
+              { label: "meals", value: todayMess, icon: "coffee" },
+              { label: "checkouts", value: todayLibrary, icon: "book-open" },
+              { label: "attendance", value: todayAttendance, icon: "check-circle" },
+              { label: "hostel", value: todayHostel, icon: "home" },
             ]}
             hourlyData={sparklineData.length > 0 ? sparklineData : undefined}
             onPress={() => router.push("/(tabs)/campus")}
@@ -285,7 +249,7 @@ export default function DashboardScreen() {
             retrySection(refetchApprovals)
           ) : pendingList.length === 0 ? (
             <View style={styles.allCaughtUp}>
-              <Text style={styles.allCaughtUpEmoji}>✅</Text>
+              <Feather name="check-circle" size={24} color={colors.accent} />
               <Text style={styles.allCaughtUpText}>All caught up!</Text>
             </View>
           ) : (
@@ -326,7 +290,7 @@ export default function DashboardScreen() {
             <View style={styles.alertList}>
               {flaggedCount > 0 && (
                 <AlertItem
-                  icon="⚠️"
+                  icon="alert-triangle"
                   message={`${flaggedCount} flagged device account${flaggedCount > 1 ? "s" : ""}`}
                   variant="warning"
                   onPress={() => router.push("/(tabs)/campus")}
@@ -334,7 +298,7 @@ export default function DashboardScreen() {
               )}
               {anomalyCount > 0 && (
                 <AlertItem
-                  icon="🔴"
+                  icon="alert-circle"
                   message={`${anomalyCount} failed QR scans in the last 7 days`}
                   variant="error"
                   onPress={() => router.push("/(tabs)/alerts")}
@@ -342,7 +306,7 @@ export default function DashboardScreen() {
               )}
               {expiringCount > 0 && (
                 <AlertItem
-                  icon="⏰"
+                  icon="clock"
                   message={`${expiringCount} role assignment${expiringCount > 1 ? "s" : ""} expiring this week`}
                   variant="warning"
                 />
@@ -460,9 +424,6 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     alignItems: "center",
     gap: spacing.xs,
-  },
-  allCaughtUpEmoji: {
-    fontSize: 24,
   },
   allCaughtUpText: {
     fontSize: fontSize.base,

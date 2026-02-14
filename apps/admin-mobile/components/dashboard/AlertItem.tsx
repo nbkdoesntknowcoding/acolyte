@@ -1,8 +1,9 @@
 import { Text, Pressable, StyleSheet } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { colors, radius, spacing, fontSize } from "@/lib/theme";
 
 interface AlertItemProps {
-  icon: string;
+  icon: React.ComponentProps<typeof Feather>["name"];
   message: string;
   variant: "error" | "warning";
   onPress?: () => void;
@@ -33,9 +34,9 @@ export function AlertItem({ icon, message, variant, onPress }: AlertItemProps) {
         pressed && onPress && { opacity: 0.7 },
       ]}
     >
-      <Text style={styles.icon}>{icon}</Text>
+      <Feather name={icon} size={16} color={v.text} />
       <Text style={[styles.text, { color: v.text }]}>{message}</Text>
-      {onPress && <Text style={styles.chevron}>›</Text>}
+      {onPress && <Feather name="chevron-right" size={18} color={colors.textMuted} />}
     </Pressable>
   );
 }
@@ -49,16 +50,9 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.sm,
   },
-  icon: {
-    fontSize: 16,
-  },
   text: {
     flex: 1,
     fontSize: fontSize.sm,
     fontWeight: "500",
-  },
-  chevron: {
-    fontSize: fontSize.lg,
-    color: colors.textMuted,
   },
 });

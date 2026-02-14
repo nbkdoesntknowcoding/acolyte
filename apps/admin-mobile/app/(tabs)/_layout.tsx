@@ -1,27 +1,26 @@
+import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Tabs } from "expo-router";
-import { View, Text, StyleSheet } from "react-native";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { colors, fontSize } from "@/lib/theme";
 import { useAlertCounts } from "@/lib/hooks/use-alerts";
 import { usePendingApprovals } from "@/lib/hooks/use-dashboard";
 
-/**
- * Simple tab icon — emoji + optional badge count.
- * We use emoji instead of icon library to keep bundle small.
- */
 function TabIcon({
-  emoji,
+  name,
   focused,
   badgeCount,
 }: {
-  emoji: string;
+  name: React.ComponentProps<typeof Feather>["name"];
   focused: boolean;
   badgeCount?: number;
 }) {
   return (
     <View style={iconStyles.wrap}>
-      <Text style={[iconStyles.emoji, focused && iconStyles.focused]}>
-        {emoji}
-      </Text>
+      <Feather
+        name={name}
+        size={22}
+        color={focused ? colors.tabActive : colors.tabInactive}
+      />
       {badgeCount != null && badgeCount > 0 && (
         <View style={iconStyles.badge}>
           <Text style={iconStyles.badgeText}>
@@ -33,10 +32,24 @@ function TabIcon({
   );
 }
 
+function QRTabButton({ onPress }: { onPress?: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        qrStyles.container,
+        pressed && { opacity: 0.8 },
+      ]}
+    >
+      <View style={qrStyles.button}>
+        <Ionicons name="qr-code-outline" size={26} color={colors.accent} />
+      </View>
+    </Pressable>
+  );
+}
+
 const iconStyles = StyleSheet.create({
   wrap: { position: "relative" },
-  emoji: { fontSize: 22, opacity: 0.5 },
-  focused: { opacity: 1 },
   badge: {
     position: "absolute",
     top: -4,
@@ -56,8 +69,25 @@ const iconStyles = StyleSheet.create({
   },
 });
 
+const qrStyles = StyleSheet.create({
+  container: {
+    top: -12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  button: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.bg,
+    borderWidth: 2,
+    borderColor: colors.accent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});
+
 export default function TabLayout() {
-  // Badge counts
   const { data: approvalsData } = usePendingApprovals(100);
   const { totalCount: alertCount } = useAlertCounts();
   const approvalCount = approvalsData?.data?.length ?? 0;
@@ -68,11 +98,15 @@ export default function TabLayout() {
         headerShown: false,
         tabBarStyle: {
           backgroundColor: colors.tabBarBg,
-          borderTopColor: colors.tabBarBorder,
-          borderTopWidth: 1,
+          borderTopWidth: 0,
           height: 80,
           paddingBottom: 20,
           paddingTop: 8,
+          elevation: 8,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.3,
+          shadowRadius: 4,
         },
         tabBarActiveTintColor: colors.tabActive,
         tabBarInactiveTintColor: colors.tabInactive,
@@ -87,7 +121,7 @@ export default function TabLayout() {
         options={{
           title: "Dashboard",
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="📊" focused={focused} />
+            <TabIcon name="bar-chart-2" focused={focused} />
           ),
         }}
       />
@@ -97,10 +131,20 @@ export default function TabLayout() {
           title: "Approvals",
           tabBarIcon: ({ focused }) => (
             <TabIcon
-              emoji="✅"
+              name="check-square"
               focused={focused}
               badgeCount={approvalCount}
             />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="qr"
+        options={{
+          title: "",
+          tabBarIcon: () => null,
+          tabBarButton: (props) => (
+            <QRTabButton onPress={props.onPress as () => void} />
           ),
         }}
       />
@@ -109,28 +153,22 @@ export default function TabLayout() {
         options={{
           title: "Campus",
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="📡" focused={focused} />
+            <TabIcon name="radio" focused={focused} />
           ),
         }}
       />
       <Tabs.Screen
-        name="people"
+        name="more"
         options={{
-          title: "People",
+          title: "More",
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="👥" focused={focused} />
+            <TabIcon name="menu" focused={focused} badgeCount={alertCount} />
           ),
         }}
       />
-      <Tabs.Screen
-        name="alerts"
-        options={{
-          title: "Alerts",
-          tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="🔔" focused={focused} badgeCount={alertCount} />
-          ),
-        }}
-      />
+      {/* Hidden — accessed via More screen */}
+      <Tabs.Screen name="people" options={{ href: null }} />
+      <Tabs.Screen name="alerts" options={{ href: null }} />
     </Tabs>
   );
 }

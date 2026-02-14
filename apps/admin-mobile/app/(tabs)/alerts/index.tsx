@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { Feather } from "@expo/vector-icons";
 import { format, formatDistanceToNow } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
 import { colors, spacing, fontSize, radius } from "@/lib/theme";
@@ -97,7 +98,7 @@ export default function AlertsScreen() {
             </View>
           ) : !hasActionItems ? (
             <View style={styles.allClearBanner}>
-              <Text style={styles.allClearEmoji}>✅</Text>
+              <Feather name="check-circle" size={32} color={colors.accent} />
               <Text style={styles.allClearText}>
                 Nothing needs your attention right now
               </Text>
@@ -106,7 +107,7 @@ export default function AlertsScreen() {
             <View style={styles.actionList}>
               {pendingCount > 0 && (
                 <ActionRow
-                  emoji="📋"
+                  icon="clipboard"
                   label={`${pendingCount} pending approval${pendingCount > 1 ? "s" : ""}`}
                   variant="warning"
                   count={pendingCount}
@@ -116,7 +117,7 @@ export default function AlertsScreen() {
 
               {flaggedCount > 0 && (
                 <ActionRow
-                  emoji="⚠️"
+                  icon="alert-triangle"
                   label={`${flaggedCount} flagged device account${flaggedCount > 1 ? "s" : ""}`}
                   variant="error"
                   count={flaggedCount}
@@ -126,7 +127,7 @@ export default function AlertsScreen() {
 
               {overdueGrievances.length > 0 && (
                 <ActionRow
-                  emoji="📩"
+                  icon="mail"
                   label={`${overdueGrievances.length} overdue grievance${overdueGrievances.length > 1 ? "s" : ""} (>7 days)`}
                   variant="error"
                   count={overdueGrievances.length}
@@ -135,7 +136,7 @@ export default function AlertsScreen() {
 
               {expiringRoles.length > 0 && (
                 <ActionRow
-                  emoji="🔑"
+                  icon="key"
                   label={`${expiringRoles.length} role${expiringRoles.length > 1 ? "s" : ""} expiring this week`}
                   variant="warning"
                   count={expiringRoles.length}
@@ -162,7 +163,7 @@ export default function AlertsScreen() {
             {msrGaps.length > 0 &&
               msrGaps.map((dept) => (
                 <View key={dept.department_name} style={styles.complianceRow}>
-                  <Text style={styles.complianceEmoji}>🏥</Text>
+                  <Feather name="activity" size={18} color={colors.textMuted} style={{ marginTop: 2 }} />
                   <View style={styles.complianceContent}>
                     <Text style={styles.complianceDept}>
                       {dept.department_name}
@@ -170,7 +171,7 @@ export default function AlertsScreen() {
                     <Text style={styles.complianceDetail}>
                       {dept.gaps
                         .map(
-                          (g) => `need ${g.deficit} ${g.designation}`,
+                          (g: { deficit: number; designation: string }) => `need ${g.deficit} ${g.designation}`,
                         )
                         .join(", ")}
                     </Text>
@@ -180,7 +181,7 @@ export default function AlertsScreen() {
 
             {feeData && feeData.overdue_30_days > 0 && (
               <View style={styles.complianceRow}>
-                <Text style={styles.complianceEmoji}>💰</Text>
+                <Feather name="dollar-sign" size={18} color={colors.textMuted} style={{ marginTop: 2 }} />
                 <View style={styles.complianceContent}>
                   <Text style={styles.complianceDept}>Fee Defaulters</Text>
                   <Text style={styles.complianceDetail}>
@@ -192,7 +193,7 @@ export default function AlertsScreen() {
 
             {attendanceData && attendanceData.below_threshold_count > 0 && (
               <View style={styles.complianceRow}>
-                <Text style={styles.complianceEmoji}>📊</Text>
+                <Feather name="bar-chart-2" size={18} color={colors.textMuted} style={{ marginTop: 2 }} />
                 <View style={styles.complianceContent}>
                   <Text style={styles.complianceDept}>Attendance</Text>
                   <Text style={styles.complianceDetail}>
@@ -257,7 +258,7 @@ export default function AlertsScreen() {
         onPress={() => router.push("/modals/notice-compose")}
         style={({ pressed }) => [styles.fab, pressed && { opacity: 0.8 }]}
       >
-        <Text style={styles.fabText}>📢</Text>
+        <Feather name="volume-2" size={24} color="#fff" />
       </Pressable>
     </SafeAreaView>
   );
@@ -268,13 +269,13 @@ export default function AlertsScreen() {
 // ---------------------------------------------------------------------------
 
 function ActionRow({
-  emoji,
+  icon,
   label,
   variant,
   count,
   onPress,
 }: {
-  emoji: string;
+  icon: React.ComponentProps<typeof Feather>["name"];
   label: string;
   variant: "warning" | "error";
   count: number;
@@ -288,6 +289,8 @@ function ActionRow({
     variant === "error"
       ? "rgba(239, 68, 68, 0.20)"
       : "rgba(245, 158, 11, 0.20)";
+  const iconColor =
+    variant === "error" ? colors.error : colors.warning;
 
   return (
     <Pressable
@@ -298,13 +301,13 @@ function ActionRow({
         pressed && { opacity: 0.7 },
       ]}
     >
-      <Text style={styles.actionEmoji}>{emoji}</Text>
+      <Feather name={icon} size={18} color={iconColor} />
       <Text style={styles.actionLabel}>{label}</Text>
       <Badge
         label={String(count)}
         variant={variant}
       />
-      {onPress && <Text style={styles.chevron}>›</Text>}
+      {onPress && <Feather name="chevron-right" size={18} color={colors.textMuted} />}
     </Pressable>
   );
 }
@@ -459,9 +462,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
   },
-  allClearEmoji: {
-    fontSize: 32,
-  },
   allClearText: {
     fontSize: fontSize.base,
     fontWeight: "600",
@@ -481,19 +481,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: spacing.lg,
   },
-  actionEmoji: {
-    fontSize: 18,
-  },
   actionLabel: {
     flex: 1,
     fontSize: fontSize.sm,
     fontWeight: "500",
     color: colors.textPrimary,
-  },
-  chevron: {
-    fontSize: fontSize.xl,
-    color: colors.textMuted,
-    fontWeight: "300",
   },
 
   // Expiring roles sub-list
@@ -540,10 +532,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.lg,
-  },
-  complianceEmoji: {
-    fontSize: 18,
-    marginTop: 2,
   },
   complianceContent: {
     flex: 1,
@@ -658,8 +646,5 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-  },
-  fabText: {
-    fontSize: 24,
   },
 });

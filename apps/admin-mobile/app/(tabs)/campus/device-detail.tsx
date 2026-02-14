@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Feather } from "@expo/vector-icons";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as Haptics from "expo-haptics";
 import { format, formatDistanceToNow } from "date-fns";
@@ -115,7 +116,7 @@ export default function DeviceDetailScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Back */}
         <Pressable onPress={() => router.back()} style={styles.backRow}>
-          <Text style={styles.backArrow}>‹</Text>
+          <Feather name="chevron-left" size={20} color={colors.primary} />
           <Text style={styles.backLabel}>Back</Text>
         </Pressable>
 
@@ -189,7 +190,7 @@ export default function DeviceDetailScreen() {
                 pressed && { opacity: 0.7 },
               ]}
             >
-              <Text style={styles.actionEmoji}>🔄</Text>
+              <Feather name="refresh-cw" size={20} color={colors.textMuted} />
               <View style={styles.actionTextWrap}>
                 <Text style={styles.actionTitle}>Reset Device</Text>
                 <Text style={styles.actionDesc}>
@@ -272,7 +273,7 @@ export default function DeviceDetailScreen() {
               pressed && { opacity: 0.7 },
             ]}
           >
-            <Text style={styles.actionEmoji}>📊</Text>
+            <Feather name="bar-chart-2" size={20} color={colors.textMuted} />
             <View style={styles.actionTextWrap}>
               <Text style={styles.actionTitle}>View Scan History</Text>
               <Text style={styles.actionDesc}>
@@ -290,7 +291,7 @@ export default function DeviceDetailScreen() {
                 pressed && { opacity: 0.7 },
               ]}
             >
-              <Text style={styles.actionEmoji}>📞</Text>
+              <Feather name="phone" size={20} color={colors.textMuted} />
               <View style={styles.actionTextWrap}>
                 <Text style={styles.actionTitle}>Call User</Text>
                 <Text style={styles.actionDesc}>{maskedPhone}</Text>
@@ -315,7 +316,7 @@ export default function DeviceDetailScreen() {
               pressed && { opacity: 0.7 },
             ]}
           >
-            <Text style={styles.actionEmoji}>👤</Text>
+            <Feather name="user" size={20} color={colors.textMuted} />
             <View style={styles.actionTextWrap}>
               <Text style={styles.actionTitle}>View Profile</Text>
               <Text style={styles.actionDesc}>
@@ -380,11 +381,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
-  },
-  backArrow: {
-    fontSize: fontSize["2xl"],
-    color: colors.primary,
-    fontWeight: "300",
   },
   backLabel: {
     fontSize: fontSize.sm,
@@ -477,9 +473,6 @@ const styles = StyleSheet.create({
   },
   dangerRow: {
     borderColor: "rgba(239, 68, 68, 0.25)",
-  },
-  actionEmoji: {
-    fontSize: 20,
   },
   actionTextWrap: {
     flex: 1,

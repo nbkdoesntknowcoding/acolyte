@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { View, Text, Pressable, StyleSheet, Animated, Platform } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
+import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { colors, radius, spacing, fontSize } from "@/lib/theme";
 import { Badge } from "@/components/ui/Badge";
@@ -162,7 +163,7 @@ export function LeaveCard({
     >
       <View style={styles.cardHeader}>
         <View style={styles.cardHeaderLeft}>
-          <Text style={styles.emoji}>🏥</Text>
+          <Feather name="activity" size={20} color={colors.textMuted} />
           <Text style={styles.name} numberOfLines={1}>
             {facultyName}
           </Text>
@@ -283,7 +284,7 @@ export function CertificateCard({
     >
       <View style={styles.cardHeader}>
         <View style={styles.cardHeaderLeft}>
-          <Text style={styles.emoji}>📄</Text>
+          <Feather name="file-text" size={20} color={colors.textMuted} />
           <Text style={styles.name} numberOfLines={1}>
             {studentName} ({enrollmentNumber})
           </Text>
@@ -385,7 +386,7 @@ export function WorkflowCard({
     >
       <View style={styles.cardHeader}>
         <View style={styles.cardHeaderLeft}>
-          <Text style={styles.emoji}>📋</Text>
+          <Feather name="clipboard" size={20} color={colors.textMuted} />
           <Text style={styles.name} numberOfLines={1}>
             {title}
           </Text>
@@ -507,9 +508,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     flex: 1,
   },
-  emoji: {
-    fontSize: 18,
-  },
   name: {
     fontSize: fontSize.base,
     fontWeight: "700",
@@ -519,7 +517,7 @@ const styles = StyleSheet.create({
   dept: {
     fontSize: fontSize.sm,
     color: colors.textMuted,
-    marginLeft: 26, // align with name after emoji
+    marginLeft: 28, // align with name after icon (20px icon + 8px gap)
   },
   divider: {
     height: 1,

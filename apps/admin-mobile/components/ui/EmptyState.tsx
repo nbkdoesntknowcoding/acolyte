@@ -1,25 +1,29 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { colors, spacing, fontSize, radius } from "@/lib/theme";
+import type { ReactNode } from "react";
+import type { FeatherName } from "./Icon";
 
 type EmptyVariant = "empty" | "success" | "error";
 
 interface EmptyStateProps {
   title: string;
   description?: string;
-  icon?: React.ReactNode;
+  icon?: ReactNode;
+  iconName?: FeatherName;
   variant?: EmptyVariant;
   onRetry?: () => void;
   retryLabel?: string;
 }
 
-const VARIANT_EMOJI: Record<EmptyVariant, string> = {
-  empty: "📭",
-  success: "✅",
-  error: "⚠️",
+const VARIANT_ICON: Record<EmptyVariant, FeatherName> = {
+  empty: "inbox",
+  success: "check-circle",
+  error: "alert-triangle",
 };
 
-const VARIANT_TITLE_COLOR: Record<EmptyVariant, string> = {
-  empty: colors.textSecondary,
+const VARIANT_COLOR: Record<EmptyVariant, string> = {
+  empty: colors.textMuted,
   success: colors.success,
   error: colors.error,
 };
@@ -28,20 +32,27 @@ export function EmptyState({
   title,
   description,
   icon,
+  iconName,
   variant = "empty",
   onRetry,
   retryLabel = "Try Again",
 }: EmptyStateProps) {
+  const featherIcon = iconName ?? VARIANT_ICON[variant];
+  const iconColor = VARIANT_COLOR[variant];
+
   return (
     <View style={styles.container}>
       {icon ? (
         <View style={styles.iconWrap}>{icon}</View>
       ) : (
-        <Text style={styles.emoji}>{VARIANT_EMOJI[variant]}</Text>
+        <Feather
+          name={featherIcon}
+          size={40}
+          color={iconColor}
+          style={styles.featherIcon}
+        />
       )}
-      <Text style={[styles.title, { color: VARIANT_TITLE_COLOR[variant] }]}>
-        {title}
-      </Text>
+      <Text style={[styles.title, { color: iconColor }]}>{title}</Text>
       {description && <Text style={styles.description}>{description}</Text>}
       {onRetry && (
         <Pressable
@@ -62,16 +73,16 @@ const styles = StyleSheet.create({
   container: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: spacing["4xl"],
+    paddingVertical: 40,
     paddingHorizontal: spacing.xl,
   },
   iconWrap: {
     marginBottom: spacing.lg,
     opacity: 0.5,
   },
-  emoji: {
-    fontSize: 40,
+  featherIcon: {
     marginBottom: spacing.md,
+    opacity: 0.6,
   },
   title: {
     fontSize: fontSize.md,
@@ -93,11 +104,11 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.card,
   },
   retryText: {
     fontSize: fontSize.sm,
     fontWeight: "600",
-    color: colors.primary,
+    color: colors.accent,
   },
 });

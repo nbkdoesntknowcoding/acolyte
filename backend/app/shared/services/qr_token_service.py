@@ -131,6 +131,31 @@ def validate_qr_identity_token(token: str) -> Optional[dict]:
         return None
 
 
+def create_admin_identity_token(
+    user_id: str,
+    college_id: str,
+) -> str:
+    """Create a short-lived admin identity QR token (5-min expiry).
+
+    Same JWT format as create_qr_identity_token() but does NOT require
+    a DeviceTrust / device fingerprint.  Used by admin users who need
+    an identity QR without going through the device-trust flow.
+
+    dfp is hardcoded to "admin" and typ is "admin_identity_qr".
+    """
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": str(user_id),
+        "typ": "admin_identity_qr",
+        "dfp": "admin",
+        "col": str(college_id)[:8],
+        "iat": now,
+        "exp": now + timedelta(seconds=300),
+    }
+    return jwt.encode(payload, settings.QR_TOKEN_SECRET, algorithm="HS256")
+
+
 def create_action_point_signature(
     action_point_id: str,
     action_type: str,

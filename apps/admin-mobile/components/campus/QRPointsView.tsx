@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { View, Text, FlatList, Pressable, StyleSheet } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { colors, spacing, fontSize, radius } from "@/lib/theme";
 import { useActionPoints, useActionPointStats } from "@/lib/hooks/use-scan-logs";
 import { Badge } from "@/components/ui/Badge";
@@ -8,16 +9,16 @@ import { PullRefresh } from "@/components/ui/PullRefresh";
 import { SkeletonLoader } from "@/components/ui/SkeletonLoader";
 import type { QRActionPoint } from "@/lib/api/qr-api";
 
-const ACTION_EMOJI: Record<string, string> = {
-  mess_entry: "🍽️",
-  library_checkout: "📚",
-  library_return: "📚",
-  attendance_mark: "✅",
-  hostel_checkin: "🏠",
-  lab_access: "🔬",
-  exam_hall_entry: "📝",
-  parking_entry: "🅿️",
-  event_checkin: "🎫",
+const ACTION_ICON: Record<string, string> = {
+  mess_entry: "coffee",
+  library_checkout: "book-open",
+  library_return: "book",
+  attendance_mark: "check-square",
+  hostel_checkin: "home",
+  lab_access: "activity",
+  exam_hall_entry: "edit-3",
+  parking_entry: "square",
+  event_checkin: "calendar",
 };
 
 export function QRPointsView() {
@@ -50,7 +51,7 @@ export function QRPointsView() {
 function ActionPointCard({ point }: { point: QRActionPoint }) {
   const [expanded, setExpanded] = useState(false);
   const { data: stats } = useActionPointStats(point.id, 7);
-  const emoji = ACTION_EMOJI[point.action_type] ?? "📋";
+  const iconName = ACTION_ICON[point.action_type] ?? "file";
 
   const todayScans = stats?.total_scans ?? 0;
   const successRate = stats?.success_rate ?? 0;
@@ -71,7 +72,7 @@ function ActionPointCard({ point }: { point: QRActionPoint }) {
     >
       <View style={styles.cardHeader}>
         <View style={styles.cardHeaderLeft}>
-          <Text style={styles.cardEmoji}>{emoji}</Text>
+          <Feather name={iconName as any} size={18} color={colors.textMuted} />
           <Text style={styles.cardName} numberOfLines={1}>
             {point.name}
           </Text>
@@ -194,9 +195,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
     flex: 1,
-  },
-  cardEmoji: {
-    fontSize: 18,
   },
   cardName: {
     fontSize: fontSize.base,

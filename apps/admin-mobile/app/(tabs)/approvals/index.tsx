@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { View, Text, FlatList, StyleSheet, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { Feather } from "@expo/vector-icons";
 import BottomSheet from "@gorhom/bottom-sheet";
 import { colors, spacing, fontSize } from "@/lib/theme";
 import {
@@ -335,7 +336,7 @@ export default function ApprovalsScreen() {
           }
           ListEmptyComponent={
             <View style={styles.emptyWrap}>
-              <Text style={styles.emptyEmoji}>🎉</Text>
+              <Feather name="check-circle" size={40} color={colors.accent} />
               <Text style={styles.emptyTitle}>All approvals handled!</Text>
               <Text style={styles.emptyDesc}>
                 Nothing needs your attention right now.
@@ -397,9 +398,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: spacing["4xl"],
     gap: spacing.sm,
-  },
-  emptyEmoji: {
-    fontSize: 48,
   },
   emptyTitle: {
     fontSize: fontSize.lg,

@@ -1,6 +1,7 @@
 import { View, Text, ScrollView, Pressable, Linking, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Feather } from "@expo/vector-icons";
 import { format } from "date-fns";
 import { colors, spacing, fontSize, radius } from "@/lib/theme";
 import { useFaculty } from "@/lib/hooks/use-people-search";
@@ -54,7 +55,7 @@ export default function FacultyProfileScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Back */}
         <Pressable onPress={() => router.back()} style={styles.backRow}>
-          <Text style={styles.backArrow}>‹</Text>
+          <Feather name="chevron-left" size={20} color={colors.primary} />
           <Text style={styles.backLabel}>Back</Text>
         </Pressable>
 
@@ -94,7 +95,7 @@ export default function FacultyProfileScreen() {
                   pressed && { opacity: 0.7 },
                 ]}
               >
-                <Text style={styles.quickEmoji}>📞</Text>
+                <Feather name="phone" size={18} color={colors.textMuted} />
                 <Text style={styles.quickLabel}>Call</Text>
               </Pressable>
             )}
@@ -106,7 +107,7 @@ export default function FacultyProfileScreen() {
                   pressed && { opacity: 0.7 },
                 ]}
               >
-                <Text style={styles.quickEmoji}>📧</Text>
+                <Feather name="mail" size={18} color={colors.textMuted} />
                 <Text style={styles.quickLabel}>Email</Text>
               </Pressable>
             )}
@@ -122,7 +123,7 @@ export default function FacultyProfileScreen() {
                 pressed && { opacity: 0.7 },
               ]}
             >
-              <Text style={styles.quickEmoji}>📱</Text>
+              <Feather name="smartphone" size={18} color={colors.textMuted} />
               <Text style={styles.quickLabel}>Device</Text>
             </Pressable>
           </View>
@@ -219,13 +220,23 @@ export default function FacultyProfileScreen() {
                     {format(new Date(scan.scanned_at), "d MMM, h:mm a")}
                   </Text>
                 </View>
-                <Text style={styles.scanResult}>
-                  {scan.validation_result === "valid"
-                    ? "✅"
-                    : scan.validation_result === "duplicate"
-                      ? "⚠️"
-                      : "❌"}
-                </Text>
+                <Feather
+                  name={
+                    scan.validation_result === "valid"
+                      ? "check-circle"
+                      : scan.validation_result === "duplicate"
+                        ? "alert-triangle"
+                        : "x-circle"
+                  }
+                  size={14}
+                  color={
+                    scan.validation_result === "valid"
+                      ? colors.success
+                      : scan.validation_result === "duplicate"
+                        ? colors.warning
+                        : colors.error
+                  }
+                />
               </View>
             ))}
           </View>
@@ -302,11 +313,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.xs,
   },
-  backArrow: {
-    fontSize: fontSize["2xl"],
-    color: colors.primary,
-    fontWeight: "300",
-  },
   backLabel: {
     fontSize: fontSize.sm,
     color: colors.primary,
@@ -367,9 +373,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: radius.md,
     backgroundColor: colors.surfaceElevated,
-  },
-  quickEmoji: {
-    fontSize: 18,
   },
   quickLabel: {
     fontSize: fontSize.xs,
@@ -440,9 +443,6 @@ const styles = StyleSheet.create({
   scanTime: {
     fontSize: fontSize.xs,
     color: colors.textMuted,
-  },
-  scanResult: {
-    fontSize: 14,
   },
 
   // Web link

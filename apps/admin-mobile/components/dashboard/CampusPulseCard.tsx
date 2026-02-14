@@ -1,11 +1,12 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { colors, radius, spacing, fontSize } from "@/lib/theme";
 import { MiniSparkline } from "./MiniSparkline";
 
 interface PulseItem {
   label: string;
   value: number;
-  emoji: string;
+  icon: React.ComponentProps<typeof Feather>["name"];
 }
 
 interface CampusPulseCardProps {
@@ -30,10 +31,13 @@ export function CampusPulseCard({
       <Text style={styles.title}>Campus Today</Text>
       <View style={styles.row}>
         {items.map((item) => (
-          <Text key={item.label} style={styles.stat}>
-            {item.emoji} <Text style={styles.statValue}>{item.value}</Text>{" "}
-            <Text style={styles.statLabel}>{item.label}</Text>
-          </Text>
+          <View key={item.label} style={styles.statItem}>
+            <Feather name={item.icon} size={14} color={colors.textMuted} />
+            <Text style={styles.stat}>
+              <Text style={styles.statValue}>{item.value}</Text>{" "}
+              <Text style={styles.statLabel}>{item.label}</Text>
+            </Text>
+          </View>
         ))}
       </View>
       {hourlyData && hourlyData.length > 0 && (
@@ -66,6 +70,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.md,
+  },
+  statItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   stat: {
     fontSize: fontSize.sm,

@@ -3,6 +3,7 @@
 Endpoints:
 - GET  /api/v1/qr/identity         — Get identity QR token
 - GET  /api/v1/qr/identity/refresh  — Force refresh QR token
+- GET  /api/v1/qr/admin-identity    — Get admin identity QR token (no device trust)
 - POST /api/v1/qr/scan/mode-a      — Scanner reads someone's QR
 - POST /api/v1/qr/scan/mode-b      — User scans location QR
 - POST /api/v1/qr/scan/mode-b/confirm — Confirm multi-step flow
@@ -36,7 +37,10 @@ from app.shared.schemas.qr import (
     ScanResult,
 )
 from app.shared.services.qr_service import QRService
-from app.shared.services.qr_token_service import clerk_user_id_to_uuid
+from app.shared.services.qr_token_service import (
+    clerk_user_id_to_uuid,
+    create_admin_identity_token,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +105,32 @@ async def refresh_identity_qr(
         college_id=user.college_id,
     )
     return IdentityQRResponse(**result)
+
+
+# ---------------------------------------------------------------------------
+# 2b. GET /admin-identity — Admin identity QR (no device trust required)
+# ---------------------------------------------------------------------------
+
+@router.get("/admin-identity", response_model=IdentityQRResponse)
+async def get_admin_identity_qr(
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Generate a rotating identity QR token for admin users.
+
+    Unlike /identity, this does NOT require an active DeviceTrust.
+    Auth is Clerk JWT only. The token uses dfp="admin" and
+    typ="admin_identity_qr" with a 5-minute expiry.
+    """
+    uid = clerk_user_id_to_uuid(user.user_id)
+    token = create_admin_identity_token(
+        user_id=str(uid),
+        college_id=str(user.college_id),
+    )
+    return IdentityQRResponse(
+        token=token,
+        expires_in=300,
+        refresh_in=240,
+    )
 
 
 # ---------------------------------------------------------------------------

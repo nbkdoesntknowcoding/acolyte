@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { colors, radius, spacing, fontSize } from "@/lib/theme";
 import { formatDistanceToNow } from "date-fns";
 
@@ -8,25 +9,25 @@ interface ActivityItemProps {
   timestamp: string;
 }
 
-const TYPE_EMOJI: Record<string, string> = {
-  leave_approved: "✅",
-  leave_rejected: "❌",
-  student_enrolled: "🎓",
-  device_reset: "📱",
-  notice_published: "📢",
-  fee_received: "💰",
-  certificate_issued: "📜",
-  faculty_joined: "👨‍🏫",
-  role_assigned: "🔑",
+const TYPE_ICON: Record<string, React.ComponentProps<typeof Feather>["name"]> = {
+  leave_approved: "check-circle",
+  leave_rejected: "x-circle",
+  student_enrolled: "user-plus",
+  device_reset: "smartphone",
+  notice_published: "volume-2",
+  fee_received: "dollar-sign",
+  certificate_issued: "file-text",
+  faculty_joined: "user-check",
+  role_assigned: "key",
 };
 
 export function ActivityItem({ type, description, timestamp }: ActivityItemProps) {
-  const emoji = TYPE_EMOJI[type] ?? "📋";
+  const icon = TYPE_ICON[type] ?? "file";
   const timeAgo = formatDistanceToNow(new Date(timestamp), { addSuffix: true });
 
   return (
     <View style={styles.row}>
-      <Text style={styles.emoji}>{emoji}</Text>
+      <Feather name={icon} size={16} color={colors.textMuted} style={styles.icon} />
       <View style={styles.content}>
         <Text style={styles.description} numberOfLines={2}>
           {description}
@@ -46,8 +47,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  emoji: {
-    fontSize: 16,
+  icon: {
     marginTop: 2,
   },
   content: {

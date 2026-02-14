@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { colors, spacing, fontSize, radius } from "@/lib/theme";
 
 interface ErrorBoundaryProps {
@@ -12,10 +13,6 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-/**
- * Catches React rendering errors and shows a fallback UI.
- * For network/API errors, use per-query error handling instead.
- */
 export class ErrorBoundary extends Component<
   ErrorBoundaryProps,
   ErrorBoundaryState
@@ -39,7 +36,12 @@ export class ErrorBoundary extends Component<
 
       return (
         <View style={styles.container}>
-          <Text style={styles.emoji}>⚠️</Text>
+          <Feather
+            name="alert-triangle"
+            size={48}
+            color={colors.warning}
+            style={styles.icon}
+          />
           <Text style={styles.title}>Something went wrong</Text>
           <Text style={styles.description}>
             {this.state.error?.message ?? "An unexpected error occurred."}
@@ -61,10 +63,6 @@ export class ErrorBoundary extends Component<
   }
 }
 
-/**
- * Inline error state for API/query failures (not React rendering errors).
- * Use this inside components when a query fails.
- */
 export function QueryErrorState({
   message,
   onRetry,
@@ -74,6 +72,7 @@ export function QueryErrorState({
 }) {
   return (
     <View style={styles.queryError}>
+      <Feather name="alert-circle" size={20} color={colors.warning} />
       <Text style={styles.queryErrorText}>
         {message ?? "Failed to load. Pull down to retry."}
       </Text>
@@ -98,16 +97,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.xl,
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg,
   },
-  emoji: {
-    fontSize: 48,
+  icon: {
     marginBottom: spacing.lg,
+    opacity: 0.6,
   },
   title: {
     fontSize: fontSize.lg,
     fontWeight: "700",
-    color: colors.textPrimary,
+    color: colors.text,
     textAlign: "center",
   },
   description: {
@@ -120,20 +119,18 @@ const styles = StyleSheet.create({
   },
   retryBtn: {
     marginTop: spacing.xl,
-    paddingHorizontal: spacing["2xl"],
+    paddingHorizontal: 24,
     paddingVertical: spacing.md,
     borderRadius: radius.md,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.accent,
   },
   retryText: {
     fontSize: fontSize.base,
     fontWeight: "600",
-    color: colors.background,
+    color: "#fff",
   },
-
-  // Inline query error
   queryError: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.card,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -157,6 +154,6 @@ const styles = StyleSheet.create({
   retryTextSmall: {
     fontSize: fontSize.xs,
     fontWeight: "600",
-    color: colors.primary,
+    color: colors.accent,
   },
 });

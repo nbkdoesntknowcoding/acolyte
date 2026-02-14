@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { View, Text, FlatList, ScrollView, Pressable, StyleSheet } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { colors, spacing, fontSize, radius } from "@/lib/theme";
 import { useScanLogs, useScanLogSummary, useScanLogAnomalies } from "@/lib/hooks/use-scan-logs";
 import { ScanLogItem } from "@/components/lists/ScanLogItem";
@@ -14,13 +15,13 @@ type Filter =
   | "hostel_checkin"
   | "lab_access";
 
-const FILTERS: { key: Filter; label: string; emoji: string }[] = [
-  { key: "all", label: "All", emoji: "" },
-  { key: "mess_entry", label: "Mess", emoji: "🍽️" },
-  { key: "library_checkout", label: "Library", emoji: "📚" },
-  { key: "attendance_mark", label: "Attendance", emoji: "✅" },
-  { key: "hostel_checkin", label: "Hostel", emoji: "🏠" },
-  { key: "lab_access", label: "Clinical", emoji: "🏥" },
+const FILTERS: { key: Filter; label: string; icon: string }[] = [
+  { key: "all", label: "All", icon: "" },
+  { key: "mess_entry", label: "Mess", icon: "coffee" },
+  { key: "library_checkout", label: "Library", icon: "book-open" },
+  { key: "attendance_mark", label: "Attendance", icon: "check-square" },
+  { key: "hostel_checkin", label: "Hostel", icon: "home" },
+  { key: "lab_access", label: "Clinical", icon: "activity" },
 ];
 
 export function LiveFeedView() {
@@ -104,7 +105,8 @@ export function LiveFeedView() {
           {failuresToday > 10 && topAnomaly && (
             <View style={styles.anomalyBanner}>
               <Text style={styles.anomalyText}>
-                ⚠️ {failuresToday} scan failures today — most common:{" "}
+                <Feather name="alert-triangle" size={14} color={colors.warning} />{" "}
+                {failuresToday} scan failures today — most common:{" "}
                 {topAnomaly.rejection_reason.replace(/_/g, " ")} (
                 {topAnomaly.count})
               </Text>
@@ -126,15 +128,23 @@ export function LiveFeedView() {
                   filter === f.key && styles.filterActive,
                 ]}
               >
-                <Text
-                  style={[
-                    styles.filterText,
-                    filter === f.key && styles.filterTextActive,
-                  ]}
-                >
-                  {f.emoji ? `${f.emoji} ` : ""}
-                  {f.label}
-                </Text>
+                <View style={styles.filterContent}>
+                  {f.icon ? (
+                    <Feather
+                      name={f.icon as any}
+                      size={14}
+                      color={filter === f.key ? colors.primary : colors.textMuted}
+                    />
+                  ) : null}
+                  <Text
+                    style={[
+                      styles.filterText,
+                      filter === f.key && styles.filterTextActive,
+                    ]}
+                  >
+                    {f.label}
+                  </Text>
+                </View>
               </Pressable>
             ))}
           </ScrollView>
@@ -248,6 +258,11 @@ const styles = StyleSheet.create({
   filterActive: {
     backgroundColor: colors.primaryDim,
     borderColor: colors.primary,
+  },
+  filterContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   filterText: {
     fontSize: fontSize.xs,
