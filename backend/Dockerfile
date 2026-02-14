@@ -7,9 +7,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python deps (cached layer — only re-runs when requirements.txt changes)
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python deps (cached layer — only re-runs when requirements change)
+COPY requirements.txt requirements-test.txt ./
+RUN pip install --no-cache-dir -r requirements-test.txt
 
 # Copy app code (respects .dockerignore)
 COPY . .

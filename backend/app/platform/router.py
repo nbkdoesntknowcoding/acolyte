@@ -7,10 +7,13 @@ Requires platform admin authentication (Acolyte team only).
 NOT accessible to college-level admins.
 """
 
+import asyncio
+import json
 import logging
 import math
 import uuid as uuid_mod
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 from uuid import UUID
 
@@ -1607,6 +1610,134 @@ async def list_audit_log(
         per_page=per_page,
         pages=max(1, math.ceil(total / per_page)),
     )
+
+
+# ===================================================================
+# SYSTEM TESTS
+# ===================================================================
+
+
+@router.get("/tests/suites")
+async def list_test_suites(
+    admin: PlatformAdminUser = Depends(require_platform_admin),
+) -> list[dict[str, Any]]:
+    """List available test suites (test files in the backend/tests directory)."""
+    backend_dir = Path(__file__).resolve().parent.parent.parent
+    tests_dir = backend_dir / "tests"
+
+    suites = []
+    if tests_dir.exists():
+        for f in sorted(tests_dir.glob("test_*.py")):
+            suites.append({
+                "file": f.name,
+                "path": str(f.relative_to(backend_dir)),
+                "label": f.stem.replace("test_", "").replace("_", " ").title(),
+            })
+    return suites
+
+
+@router.post("/tests/run")
+async def run_tests(
+    admin: PlatformAdminUser = Depends(require_platform_admin),
+    suite: str | None = Query(None, description="Specific test file to run (e.g. test_admin_engine_e2e.py)"),
+    keyword: str | None = Query(None, description="pytest -k filter expression"),
+) -> dict[str, Any]:
+    """Run backend tests and return structured results.
+
+    Runs pytest with JSON output and returns parsed results.
+    Only accessible by platform admins (Acolyte team).
+    """
+    backend_dir = Path(__file__).resolve().parent.parent.parent
+
+    cmd = [
+        "python3", "-m", "pytest",
+        "--tb=short",
+        "-q",
+        "--no-header",
+    ]
+
+    if suite:
+        # Validate suite name to prevent path traversal
+        if ".." in suite or "/" in suite:
+            raise HTTPException(400, "Invalid suite name")
+        suite_path = backend_dir / "tests" / suite
+        if not suite_path.exists():
+            raise HTTPException(404, f"Test suite '{suite}' not found")
+        cmd.append(f"tests/{suite}")
+    else:
+        cmd.append("tests/")
+
+    if keyword:
+        cmd.extend(["-k", keyword])
+
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            cwd=str(backend_dir),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await asyncio.wait_for(
+            proc.communicate(), timeout=120
+        )
+    except asyncio.TimeoutError:
+        return {
+            "status": "timeout",
+            "exit_code": -1,
+            "summary": "Tests timed out after 120 seconds",
+            "output": "",
+            "passed": 0,
+            "failed": 0,
+            "errors": 0,
+            "total": 0,
+            "duration_seconds": 120,
+        }
+
+    output = stdout.decode("utf-8", errors="replace")
+    err_output = stderr.decode("utf-8", errors="replace")
+
+    # Parse pytest output for counts
+    passed = failed = errors = total = 0
+    duration = 0.0
+    summary_line = ""
+
+    for line in (output + err_output).splitlines():
+        line_stripped = line.strip()
+        # Match "198 passed in 3.89s" or "5 failed, 193 passed in 4.12s"
+        if "passed" in line_stripped and ("in " in line_stripped):
+            summary_line = line_stripped
+            import re
+            m_passed = re.search(r"(\d+) passed", line_stripped)
+            m_failed = re.search(r"(\d+) failed", line_stripped)
+            m_errors = re.search(r"(\d+) error", line_stripped)
+            m_duration = re.search(r"in ([\d.]+)s", line_stripped)
+            if m_passed:
+                passed = int(m_passed.group(1))
+            if m_failed:
+                failed = int(m_failed.group(1))
+            if m_errors:
+                errors = int(m_errors.group(1))
+            if m_duration:
+                duration = float(m_duration.group(1))
+            total = passed + failed + errors
+
+    status = "passed" if proc.returncode == 0 else "failed"
+
+    return {
+        "status": status,
+        "exit_code": proc.returncode,
+        "summary": summary_line or output.splitlines()[-1] if output.strip() else "No output",
+        "output": output[-5000:] if len(output) > 5000 else output,
+        "stderr": err_output[-2000:] if err_output else "",
+        "passed": passed,
+        "failed": failed,
+        "errors": errors,
+        "total": total,
+        "duration_seconds": duration,
+        "suite": suite,
+        "keyword": keyword,
+        "ran_at": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 # ===================================================================

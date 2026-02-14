@@ -1,4 +1,8 @@
-"""Shared Pydantic schemas used across all engines."""
+"""Shared Pydantic schemas used across all engines.
+
+Re-exports all base schemas so existing imports like
+`from app.shared.schemas import PaginatedResponse` continue to work.
+"""
 
 from datetime import datetime, timezone
 from uuid import UUID
@@ -15,10 +19,6 @@ class HealthCheck(BaseModel):
 
 # ---------------------------------------------------------------------------
 # Standard error envelope (for OpenAPI documentation)
-#
-# The actual error responses are built by error_handlers.py. These schemas
-# are for use in OpenAPI responses={} declarations so Swagger/Redoc shows
-# the correct error shape.
 # ---------------------------------------------------------------------------
 
 class ErrorDetail(BaseModel):
@@ -33,10 +33,7 @@ class ErrorDetail(BaseModel):
 
 
 class ErrorResponse(BaseModel):
-    """Top-level error envelope.
-
-    Shape: {"error": {"code": "...", "message": "...", "details": ..., "timestamp": "..."}}
-    """
+    """Top-level error envelope."""
 
     error: ErrorDetail
 

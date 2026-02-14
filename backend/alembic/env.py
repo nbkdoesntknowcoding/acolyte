@@ -15,6 +15,12 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from app.config import get_settings
 from app.shared.models import Base
 
+# Import ALL shared models so Alembic detects them
+from app.shared.models.device_trust import *  # noqa: F401, F403
+from app.shared.models.qr import *  # noqa: F401, F403
+from app.shared.models.dynamic_roles import *  # noqa: F401, F403
+from app.shared.models.committee import *  # noqa: F401, F403
+
 # Import ALL engine models so Alembic detects them
 from app.engines.admin.models import *  # noqa: F401, F403
 from app.engines.faculty.models import *  # noqa: F401, F403

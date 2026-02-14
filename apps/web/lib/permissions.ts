@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/nextjs';
 
-const PERMIFY_API_URL = process.env.NEXT_PUBLIC_PERMIFY_URL || 'http://localhost:3476';
-
 /**
  * Check a permission against Permify.
  * Uses Zanzibar-style entity:relation:subject model.

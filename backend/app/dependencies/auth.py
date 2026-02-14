@@ -24,19 +24,21 @@ Usage in route handlers:
 """
 
 import logging
+import time
 from typing import Callable
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings, get_settings
 from app.core.database import get_db
 from app.middleware.clerk_auth import (
     CurrentUser,
+    ORG_ID_SENTINEL,
     UserRole,
     extract_current_user,
     verify_clerk_jwt,
@@ -54,14 +56,59 @@ _bearer_scheme_required = HTTPBearer(auto_error=True)
 
 
 # ---------------------------------------------------------------------------
+# Clerk org_id → college UUID resolver with in-memory cache
+# ---------------------------------------------------------------------------
+
+_org_cache: dict[str, tuple[UUID, float]] = {}
+_ORG_CACHE_TTL = 300  # 5 minutes
+
+
+async def _resolve_college_id(clerk_org_id: str, db: AsyncSession) -> UUID | None:
+    """Resolve a Clerk org_id to a college UUID, with in-memory caching.
+
+    The colleges table is NOT tenant-scoped (no RLS), so this lookup
+    works without setting app.current_college_id first.
+    """
+    now = time.monotonic()
+    cached = _org_cache.get(clerk_org_id)
+    if cached and (now - cached[1]) < _ORG_CACHE_TTL:
+        return cached[0]
+
+    from app.engines.admin.models import College
+
+    result = await db.execute(
+        select(College.id).where(College.clerk_org_id == clerk_org_id)
+    )
+    row = result.scalar_one_or_none()
+    if row:
+        _org_cache[clerk_org_id] = (row, now)
+    return row
+
+
+def invalidate_org_cache(clerk_org_id: str | None = None) -> None:
+    """Invalidate the org_id → college_id cache.
+
+    Call when the colleges table is updated (e.g. new org linked).
+    """
+    if clerk_org_id:
+        _org_cache.pop(clerk_org_id, None)
+    else:
+        _org_cache.clear()
+
+
+# ---------------------------------------------------------------------------
 # get_current_user — the primary auth dependency
 # ---------------------------------------------------------------------------
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme_required),
     settings: Settings = Depends(get_settings),
+    db: AsyncSession = Depends(get_db),
 ) -> CurrentUser:
     """Validate the Bearer token and return the authenticated user.
+
+    If the Clerk org_id is not a UUID (standard Clerk format: org_xxx),
+    resolves it to a college UUID via the colleges.clerk_org_id mapping.
 
     Raises:
         HTTPException 401: Missing/invalid/expired token.
@@ -89,11 +136,35 @@ async def get_current_user(
     try:
         user = extract_current_user(payload)
     except ValueError as exc:
-        # Missing org_id or invalid org_id format
+        # Missing org_id
         logger.warning("User context extraction failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(exc),
+        )
+
+    # Resolve Clerk org_id → college UUID if needed
+    if user.clerk_org_id and user.college_id == ORG_ID_SENTINEL:
+        college_id = await _resolve_college_id(user.clerk_org_id, db)
+        if not college_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    f"Organization '{user.clerk_org_id}' is not linked to any college. "
+                    "Contact platform administrator."
+                ),
+            )
+        # Reconstruct with resolved college_id (CurrentUser is frozen)
+        user = CurrentUser(
+            user_id=user.user_id,
+            college_id=college_id,
+            clerk_org_id=user.clerk_org_id,
+            role=user.role,
+            email=user.email,
+            full_name=user.full_name,
+            org_slug=user.org_slug,
+            session_id=user.session_id,
+            permissions=user.permissions,
         )
 
     return user
@@ -106,6 +177,7 @@ async def get_current_user(
 async def get_optional_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
     settings: Settings = Depends(get_settings),
+    db: AsyncSession = Depends(get_db),
 ) -> CurrentUser | None:
     """Return CurrentUser if a valid Bearer token is present, else None.
 
@@ -117,7 +189,25 @@ async def get_optional_user(
 
     try:
         payload = await verify_clerk_jwt(credentials.credentials, settings)
-        return extract_current_user(payload)
+        user = extract_current_user(payload)
+
+        # Resolve Clerk org_id if needed
+        if user.clerk_org_id and user.college_id == ORG_ID_SENTINEL:
+            college_id = await _resolve_college_id(user.clerk_org_id, db)
+            if not college_id:
+                return None
+            user = CurrentUser(
+                user_id=user.user_id,
+                college_id=college_id,
+                clerk_org_id=user.clerk_org_id,
+                role=user.role,
+                email=user.email,
+                full_name=user.full_name,
+                org_slug=user.org_slug,
+                session_id=user.session_id,
+                permissions=user.permissions,
+            )
+        return user
     except (JWTError, ValueError):
         return None
 

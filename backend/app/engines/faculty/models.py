@@ -1,6 +1,6 @@
 """Faculty Engine — SQLAlchemy Models."""
 
-from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.shared.models import Base, TenantModel
@@ -99,10 +99,16 @@ class QuestionBankItem(TenantModel):
 class ClinicalRotation(TenantModel):
     """Student clinical posting/rotation schedule."""
     __tablename__ = "clinical_rotations"
+    __table_args__ = (
+        Index("ix_clinrot_college_student", "college_id", "student_id"),
+        Index("ix_clinrot_college_dept", "college_id", "department_id"),
+    )
 
     student_id = Column(UUID(as_uuid=True), ForeignKey("students.id"), nullable=False)
     department_id = Column(UUID(as_uuid=True), ForeignKey("departments.id"), nullable=False)
     batch_id = Column(UUID(as_uuid=True), ForeignKey("batches.id"))
+    rotation_group = Column(String(20))
+    phase = Column(String(20))
 
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
@@ -110,11 +116,15 @@ class ClinicalRotation(TenantModel):
     required_hours = Column(Integer)
     completed_hours = Column(Integer, default=0)
 
+    supervisor_faculty_id = Column(UUID(as_uuid=True), ForeignKey("faculty.id"), nullable=True)
     posting_assessment_score = Column(Float)
     assessed_by = Column(UUID(as_uuid=True), ForeignKey("faculty.id"))
     assessed_at = Column(DateTime(timezone=True))
 
     status = Column(String(20), default="scheduled")
+    attendance_percentage = Column(Float)
+    is_crmi = Column(Boolean, default=False)
+    crmi_leave_days_taken = Column(Integer, default=0)
 
 
 class LessonPlan(TenantModel):

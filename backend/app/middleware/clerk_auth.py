@@ -4,17 +4,14 @@ Validates RS256 JWTs using Clerk's JWKS endpoint with timed cache.
 Extracts user_id, org_id (college_id/tenant), role, and session claims.
 Sets PostgreSQL RLS context variable for tenant isolation.
 
-Clerk JWT claims reference (v2 session tokens):
+Clerk JWT claims reference:
+  V2 (April 2025+): org data nested under "o" claim: o.id, o.rol, o.slg, o.per
+  V1 (deprecated): org_id, org_role, org_slug, org_permissions at top level
 - sub: Clerk user ID (user_xxx)
-- org_id: active organization ID (org_xxx) — maps to our college_id
-- org_role: role within org (org:admin, org:member, or custom)
-- org_slug: org slug for display
+- sid: session ID (sess_xxx)
 - azp: authorized party (publishable key / origin)
 - iss: issuer URL (https://<instance>.clerk.accounts.dev)
 - exp / nbf / iat: standard time claims
-- email: user email (if present in session template)
-- first_name / last_name: from Clerk user profile (if present)
-- metadata: custom public/private metadata (if configured in session template)
 """
 
 import asyncio
@@ -83,6 +80,7 @@ class CurrentUser(BaseModel):
     """
     user_id: str = Field(description="Clerk user ID (user_xxx)")
     college_id: UUID = Field(description="Organization/tenant ID for RLS")
+    clerk_org_id: str | None = Field(default=None, description="Raw Clerk org ID (org_xxx)")
     role: UserRole = Field(description="Mapped application role")
     email: str | None = Field(default=None, description="User email")
     full_name: str | None = Field(default=None, description="Display name")
@@ -91,6 +89,11 @@ class CurrentUser(BaseModel):
     permissions: list[str] = Field(default_factory=list, description="Org-level permissions")
 
     model_config = {"frozen": True}
+
+
+# Sentinel UUID used when org_id is a Clerk ID (org_xxx) that needs DB resolution.
+# Immediately resolved in the get_current_user dependency — never reaches route handlers.
+ORG_ID_SENTINEL = UUID("00000000-0000-0000-0000-000000000000")
 
 
 # ---------------------------------------------------------------------------
@@ -255,25 +258,57 @@ async def verify_clerk_jwt(token: str, settings: Settings | None = None) -> dict
 def extract_current_user(payload: dict) -> CurrentUser:
     """Extract a CurrentUser from a verified JWT payload.
 
-    Clerk v2 session token structure:
+    Supports BOTH Clerk session token formats:
+
+    V2 (current, April 2025+):
+    {
+      "sub": "user_2abc...",
+      "sid": "sess_2...",
+      "o": {
+        "id": "org_2xyz...",
+        "rol": "org:faculty",
+        "slg": "demo-college",
+        "per": "org:students:read,org:assessments:manage",
+        "fpm": "1"
+      },
+      ...
+    }
+
+    V1 (deprecated):
     {
       "sub": "user_2abc...",
       "org_id": "org_2xyz...",
       "org_role": "org:faculty",
       "org_slug": "demo-college",
-      "email": "dr.smith@college.edu",
-      "first_name": "Dr.",
-      "last_name": "Smith",
-      "sid": "sess_2...",
-      "org_permissions": ["org:students:read", "org:assessments:manage"],
+      "org_permissions": ["org:students:read"],
       ...
     }
     """
     user_id = payload.get("sub", "")
-    org_id = payload.get("org_id")
-    org_role = payload.get("org_role")
-    org_slug = payload.get("org_slug")
     session_id = payload.get("sid")
+
+    # --- Extract org claims: V2 ("o" object) with V1 fallback ---
+    o_claim = payload.get("o")
+    if isinstance(o_claim, dict) and o_claim.get("id"):
+        # V2 session token
+        org_id = o_claim["id"]
+        org_role_raw = o_claim.get("rol", "")
+        org_slug = o_claim.get("slg")
+        # V2 permissions can be comma-separated string or absent
+        per_raw = o_claim.get("per", "")
+        permissions = [p for p in per_raw.split(",") if p] if isinstance(per_raw, str) else per_raw or []
+        logger.debug("Parsed V2 session token: org_id=%s, role=%s", org_id, org_role_raw)
+    else:
+        # V1 session token (or custom JWT template)
+        org_id = payload.get("org_id")
+        org_role_raw = payload.get("org_role", "")
+        org_slug = payload.get("org_slug")
+        permissions = payload.get("org_permissions", [])
+
+    # Normalize role: V2 may use "admin" instead of "org:admin"
+    org_role = org_role_raw
+    if org_role and not org_role.startswith("org:"):
+        org_role = f"org:{org_role}"
 
     # Email: Clerk may put it at top level or in metadata
     email = payload.get("email")
@@ -282,9 +317,6 @@ def extract_current_user(payload: dict) -> CurrentUser:
     first_name = payload.get("first_name", "")
     last_name = payload.get("last_name", "")
     full_name = f"{first_name} {last_name}".strip() or None
-
-    # Org permissions
-    permissions = payload.get("org_permissions", [])
 
     # Map role
     # Also check metadata for custom role override (set via Clerk dashboard)
@@ -299,24 +331,22 @@ def extract_current_user(payload: dict) -> CurrentUser:
     if not org_id:
         raise ValueError("JWT missing org_id claim — user must select an organization")
 
-    # Clerk org_id format: "org_2abc..." — we need to map this to our UUID college_id.
-    # The mapping is stored in the colleges table (clerk_org_id column).
-    # For now, we'll pass the org_id as-is and resolve to UUID in the dependency layer.
-    # If org_id is already a UUID (from session template customization), use it directly.
+    # Clerk org_id can be either:
+    # 1. A UUID (from custom session template) → use directly as college_id
+    # 2. A Clerk ID like "org_2abc..." → needs DB lookup (resolved in dependency layer)
+    college_id: UUID
+    clerk_org_id_str: str | None = None
     try:
         college_id = UUID(org_id)
     except ValueError:
-        # org_id is a Clerk ID like "org_2abc..." — store it for lookup
-        # We'll handle the mapping in the dependency that sets RLS context
-        raise ValueError(
-            f"org_id '{org_id}' is not a UUID. Configure your Clerk session "
-            "token template to include college_id as a UUID, or set up the "
-            "org_id → college_id mapping in the colleges table."
-        )
+        # Clerk org_id format — will be resolved to college UUID in get_current_user
+        clerk_org_id_str = org_id
+        college_id = ORG_ID_SENTINEL
 
     return CurrentUser(
         user_id=user_id,
         college_id=college_id,
+        clerk_org_id=clerk_org_id_str,
         role=role,
         email=email,
         full_name=full_name,

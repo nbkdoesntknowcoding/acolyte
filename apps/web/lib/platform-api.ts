@@ -211,18 +211,14 @@ export interface AuditLogEntry {
 // ---------------------------------------------------------------------------
 
 function createFetcher(
-  getToken: (opts?: { template?: string }) => Promise<string | null>
+  getToken: () => Promise<string | null>
 ) {
   return async function <T>(
     path: string,
     options?: RequestInit
   ): Promise<T> {
-    // Use the acolyte-session JWT template which includes public_metadata.
-    // Falls back to default session token if template doesn't exist.
-    let token = await getToken({ template: 'acolyte-session' });
-    if (!token) {
-      token = await getToken();
-    }
+    // Default session token includes V2 org claims (o.id, o.rol, o.slg, o.per)
+    const token = await getToken();
     const res = await fetch(`${API_BASE}/api/v1/platform${path}`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -462,6 +458,58 @@ export function useLicenseAction() {
         body: body ? JSON.stringify(body) : undefined,
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['platform', 'licenses'] }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Test runner hooks
+// ---------------------------------------------------------------------------
+
+export interface TestSuite {
+  file: string;
+  path: string;
+  label: string;
+}
+
+export interface TestRunResult {
+  status: 'passed' | 'failed' | 'timeout';
+  exit_code: number;
+  summary: string;
+  output: string;
+  stderr?: string;
+  passed: number;
+  failed: number;
+  errors: number;
+  total: number;
+  duration_seconds: number;
+  suite: string | null;
+  keyword: string | null;
+  ran_at: string;
+}
+
+export function useTestSuites(): UseQueryResult<TestSuite[]> {
+  const { getToken } = useAuth();
+  const fetcher = createFetcher(getToken);
+  return useQuery({
+    queryKey: ['platform', 'tests', 'suites'],
+    queryFn: () => fetcher<TestSuite[]>('/tests/suites'),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useRunTests() {
+  const { getToken } = useAuth();
+  const fetcher = createFetcher(getToken);
+  return useMutation({
+    mutationFn: ({ suite, keyword }: { suite?: string; keyword?: string }) => {
+      const params = new URLSearchParams();
+      if (suite) params.set('suite', suite);
+      if (keyword) params.set('keyword', keyword);
+      return fetcher<TestRunResult>(`/tests/run?${params}`, {
+        method: 'POST',
+      });
+    },
   });
 }
 

@@ -57,18 +57,82 @@ class MembershipPayload(BaseModel):
 # ---------------------------------------------------------------------------
 
 @router.post("/user-created")
-async def handle_user_created(payload: UserCreatedPayload):
+async def handle_user_created(payload: UserCreatedPayload, request: Request):
     """Handle Clerk user.created webhook.
 
-    Creates a user record in the database (when SIS is built).
-    For now, just logs the event.
+    Auto-assigns users to organizations based on email domain matching.
+    If the user's email domain matches a college's allowed_domains list,
+    the user is automatically added to that college's Clerk organization.
     """
     logger.info(
         "Clerk user created: %s (%s)",
         payload.clerk_user_id, payload.email,
     )
-    # TODO: Create user record in DB when SIS tables exist
-    return {"status": "ok", "user_id": payload.clerk_user_id}
+
+    if not payload.email or "@" not in payload.email:
+        logger.warning(
+            "No email for user %s, skipping auto-assignment",
+            payload.clerk_user_id,
+        )
+        return {"status": "ok", "user_id": payload.clerk_user_id, "auto_assigned": False}
+
+    # Extract domain from email
+    domain = payload.email.rsplit("@", 1)[-1].lower()
+    if not domain:
+        return {"status": "ok", "user_id": payload.clerk_user_id, "auto_assigned": False}
+
+    # Find college with matching allowed_domain
+    from sqlalchemy import select
+    from app.core.database import async_session_factory
+    from app.engines.admin.models import College
+
+    async with async_session_factory() as db:
+        result = await db.execute(
+            select(College.clerk_org_id, College.name)
+            .where(College.allowed_domains.contains([domain]))
+            .where(College.clerk_org_id.isnot(None))
+        )
+        college = result.first()
+
+    if not college:
+        logger.info(
+            "No college found for domain '%s' (user %s) — user will see domain error on onboarding",
+            domain, payload.clerk_user_id,
+        )
+        return {
+            "status": "ok",
+            "user_id": payload.clerk_user_id,
+            "auto_assigned": False,
+            "reason": f"No college registered for domain '{domain}'",
+        }
+
+    # Auto-add user to the Clerk organization
+    from app.core.clerk_client import ClerkClient
+
+    clerk: ClerkClient | None = getattr(request.app.state, "clerk", None)
+    if not clerk:
+        logger.error("ClerkClient not available for auto-assignment")
+        return {"status": "error", "detail": "Clerk client unavailable"}
+
+    success = await clerk.add_user_to_organization(
+        org_id=college.clerk_org_id,
+        user_id=payload.clerk_user_id,
+        role="org:member",  # Default role; admin can upgrade via Clerk Dashboard
+    )
+
+    if success:
+        logger.info(
+            "Auto-assigned user %s to org %s (%s) via domain '%s'",
+            payload.clerk_user_id, college.clerk_org_id, college.name, domain,
+        )
+
+    return {
+        "status": "ok" if success else "error",
+        "user_id": payload.clerk_user_id,
+        "auto_assigned": success,
+        "org_id": college.clerk_org_id,
+        "college_name": college.name,
+    }
 
 
 @router.post("/membership-created")
