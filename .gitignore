@@ -86,3 +86,4 @@ yarn-error.log*
 tmp/
 temp/
 Errorlog_running.txt
+apps/admin-mobile/app/index.js
