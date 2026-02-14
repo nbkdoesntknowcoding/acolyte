@@ -4,6 +4,15 @@ on:
   pull_request:
     branches: [main]
     paths: ['backend/**']
+  push:
+    branches:
+      - 'feat/admin-engine'
+      - 'feat/compliance-engine'
+      - 'feat/faculty-engine'
+      - 'feat/student-engine'
+      - 'feat/integration-engine'
+      - 'feat/ai-central-engine'
+    paths: ['backend/**']
 
 jobs:
   test:
