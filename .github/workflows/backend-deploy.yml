@@ -2,7 +2,14 @@ name: Backend Deploy
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'feat/admin-engine'
+      - 'feat/compliance-engine'
+      - 'feat/faculty-engine'
+      - 'feat/student-engine'
+      - 'feat/integration-engine'
+      - 'feat/ai-central-engine'
     paths:
       - 'backend/**'
 
