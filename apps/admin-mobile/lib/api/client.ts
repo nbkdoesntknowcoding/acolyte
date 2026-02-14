@@ -1,5 +1,6 @@
 import axios from "axios";
 import Constants from "expo-constants";
+import { tokenManager } from "../device-trust/token-manager";
 
 const API_URL =
   Constants.expoConfig?.extra?.apiUrl ??
@@ -38,10 +39,18 @@ export function createAuthClient(getToken: () => Promise<string | null>) {
   });
 
   client.interceptors.request.use(async (config) => {
+    // Clerk JWT
     const token = await getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Device Trust Token
+    const deviceToken = await tokenManager.getToken();
+    if (deviceToken) {
+      config.headers["X-Device-Trust-Token"] = deviceToken;
+    }
+
     return config;
   });
 

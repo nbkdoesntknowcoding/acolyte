@@ -1,4 +1,5 @@
 import type { AxiosInstance } from "axios";
+import type { DeviceInfoPayload } from "../device-trust/fingerprint";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -33,8 +34,48 @@ export interface DeviceStats {
   platforms: Record<string, number>;
 }
 
+export interface RegisterDeviceResponse {
+  verification_id: string;
+  sms_target_number: string;
+  sms_body_template: string;
+  verification_code: string;
+  expires_in_seconds: number;
+  dev_mode: boolean;
+}
+
+export interface DeviceStatusResponse {
+  status: "pending" | "active" | "failed" | string;
+  device_trust_token?: string;
+  token_expires_at?: string;
+  message?: string;
+}
+
 // ---------------------------------------------------------------------------
-// API functions
+// User-facing device registration API
+// ---------------------------------------------------------------------------
+
+export const deviceRegistrationApi = {
+  register: (api: AxiosInstance, phoneNumber: string, deviceInfo: DeviceInfoPayload) =>
+    api
+      .post<RegisterDeviceResponse>("/device/register", {
+        phone_number: phoneNumber,
+        device_info: deviceInfo,
+      })
+      .then((r) => r.data),
+
+  checkStatus: (api: AxiosInstance, verificationId: string) =>
+    api
+      .get<DeviceStatusResponse>("/device/status", {
+        params: { verification_id: verificationId },
+      })
+      .then((r) => r.data),
+
+  revoke: (api: AxiosInstance) =>
+    api.delete("/device/revoke").then((r) => r.data),
+};
+
+// ---------------------------------------------------------------------------
+// Admin device management API
 // ---------------------------------------------------------------------------
 
 export const deviceApi = {
