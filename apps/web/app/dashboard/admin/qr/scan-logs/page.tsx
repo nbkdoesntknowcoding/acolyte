@@ -12,22 +12,38 @@
 import { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
+  Activity,
   AlertTriangle,
   ArrowLeft,
+  BookOpen,
+  Calendar,
   Check,
+  CheckCircle,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  Coffee,
+  CreditCard,
   Download,
+  FileText,
+  HelpCircle,
+  Home,
   MapPin,
+  RefreshCw,
   ScanLine,
   Search,
   Shield,
+  ShieldAlert,
+  ShieldOff,
   Smartphone,
   Timer,
+  Truck,
+  UserPlus,
+  Wrench,
   X,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -46,34 +62,34 @@ import type { QRActionType } from '@/types/admin';
 
 const PAGE_SIZE = 50;
 
-const ACTION_TYPE_META: Record<string, { emoji: string; label: string; color: string }> = {
-  mess_entry:         { emoji: '🍽️', label: 'Mess',              color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
-  hostel_checkin:     { emoji: '🏠', label: 'Hostel',            color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-  library_visit:      { emoji: '📚', label: 'Library',           color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' },
-  library_checkout:   { emoji: '📖', label: 'Lib Checkout',      color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' },
-  library_return:     { emoji: '📕', label: 'Lib Return',        color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' },
-  attendance_mark:    { emoji: '✅', label: 'Attendance',         color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
-  equipment_checkout: { emoji: '🔧', label: 'Equipment',         color: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' },
-  event_checkin:      { emoji: '🎫', label: 'Event',             color: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400' },
-  exam_hall_entry:    { emoji: '📝', label: 'Exam',              color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
-  transport_boarding: { emoji: '🚌', label: 'Transport',         color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' },
-  clinical_posting:   { emoji: '🏥', label: 'Clinical',          color: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400' },
-  fee_payment:        { emoji: '💰', label: 'Fee',               color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
-  visitor_entry:      { emoji: '🚪', label: 'Visitor',           color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
-  certificate_verify: { emoji: '📜', label: 'Certificate',       color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+const ACTION_TYPE_META: Record<string, { icon: LucideIcon; label: string; color: string }> = {
+  mess_entry:         { icon: Coffee,      label: 'Mess',              color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
+  hostel_checkin:     { icon: Home,        label: 'Hostel',            color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+  library_visit:      { icon: BookOpen,    label: 'Library',           color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' },
+  library_checkout:   { icon: BookOpen,    label: 'Lib Checkout',      color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' },
+  library_return:     { icon: BookOpen,    label: 'Lib Return',        color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' },
+  attendance_mark:    { icon: CheckCircle, label: 'Attendance',        color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
+  equipment_checkout: { icon: Wrench,      label: 'Equipment',         color: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' },
+  event_checkin:      { icon: Calendar,    label: 'Event',             color: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400' },
+  exam_hall_entry:    { icon: FileText,    label: 'Exam',              color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
+  transport_boarding: { icon: Truck,       label: 'Transport',         color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' },
+  clinical_posting:   { icon: Activity,    label: 'Clinical',          color: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400' },
+  fee_payment:        { icon: CreditCard,  label: 'Fee',               color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
+  visitor_entry:      { icon: UserPlus,    label: 'Visitor',           color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
+  certificate_verify: { icon: Shield,      label: 'Certificate',       color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
 };
 
-const RESULT_META: Record<string, { icon: string; label: string; color: string }> = {
-  success:          { icon: '✓', label: 'Success',          color: 'text-emerald-600 dark:text-emerald-400' },
-  duplicate_scan:   { icon: '↻', label: 'Duplicate',        color: 'text-gray-500' },
-  expired_token:    { icon: '⏰', label: 'Expired Token',    color: 'text-amber-600 dark:text-amber-400' },
-  device_mismatch:  { icon: '🔒', label: 'Device Mismatch', color: 'text-red-600 dark:text-red-400' },
-  geo_violation:    { icon: '📍', label: 'Outside Range',    color: 'text-red-600 dark:text-red-400' },
-  time_violation:   { icon: '🕐', label: 'Time Violation',   color: 'text-red-600 dark:text-red-400' },
-  revoked_device:   { icon: '🚫', label: 'Revoked Device',  color: 'text-red-600 dark:text-red-400' },
-  unauthorized:     { icon: '⛔', label: 'Unauthorized',     color: 'text-red-600 dark:text-red-400' },
-  invalid_qr:       { icon: '❌', label: 'Invalid QR',       color: 'text-red-600 dark:text-red-400' },
-  no_handler:       { icon: '?',  label: 'No Handler',       color: 'text-red-600 dark:text-red-400' },
+const RESULT_META: Record<string, { icon: LucideIcon; label: string; color: string }> = {
+  success:          { icon: Check,          label: 'Success',          color: 'text-emerald-600 dark:text-emerald-400' },
+  duplicate_scan:   { icon: RefreshCw,      label: 'Duplicate',        color: 'text-gray-500' },
+  expired_token:    { icon: Timer,          label: 'Expired Token',    color: 'text-amber-600 dark:text-amber-400' },
+  device_mismatch:  { icon: Shield,         label: 'Device Mismatch', color: 'text-red-600 dark:text-red-400' },
+  geo_violation:    { icon: MapPin,         label: 'Outside Range',    color: 'text-red-600 dark:text-red-400' },
+  time_violation:   { icon: Timer,          label: 'Time Violation',   color: 'text-red-600 dark:text-red-400' },
+  revoked_device:   { icon: ShieldOff,      label: 'Revoked Device',  color: 'text-red-600 dark:text-red-400' },
+  unauthorized:     { icon: ShieldAlert,    label: 'Unauthorized',     color: 'text-red-600 dark:text-red-400' },
+  invalid_qr:       { icon: X,             label: 'Invalid QR',       color: 'text-red-600 dark:text-red-400' },
+  no_handler:       { icon: HelpCircle,    label: 'No Handler',       color: 'text-red-600 dark:text-red-400' },
 };
 
 const ANOMALY_COLORS: Record<string, string> = {
@@ -244,7 +260,7 @@ export default function ScanLogsPage() {
       if (row.count > maxCount) {
         maxCount = row.count;
         const meta = ACTION_TYPE_META[row.action_type];
-        mostActive = meta ? `${meta.emoji} ${meta.label}` : row.action_type;
+        mostActive = meta ? meta.label : row.action_type;
       }
     }
 
@@ -388,7 +404,7 @@ export default function ScanLogsPage() {
                       key={i}
                       className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium ${colorClass}`}
                     >
-                      <span>{meta?.icon ?? '!'}</span>
+                      {meta ? <meta.icon className="h-3 w-3" /> : <HelpCircle className="h-3 w-3" />}
                       {a.validation_result.replace(/_/g, ' ')}
                       {a.rejection_reason && (
                         <span className="opacity-70">({a.rejection_reason})</span>
@@ -436,7 +452,7 @@ export default function ScanLogsPage() {
               { value: '', label: 'All Types' },
               ...Object.entries(ACTION_TYPE_META).map(([k, v]) => ({
                 value: k,
-                label: `${v.emoji} ${v.label}`,
+                label: v.label,
               })),
             ]}
           />
@@ -453,7 +469,7 @@ export default function ScanLogsPage() {
               { value: '__failures__', label: 'Failures Only' },
               ...Object.entries(RESULT_META).map(([k, v]) => ({
                 value: k,
-                label: `${v.icon} ${v.label}`,
+                label: v.label,
               })),
             ]}
           />
@@ -521,12 +537,12 @@ export default function ScanLogsPage() {
 
             {displayLogs.map((log) => {
               const actionMeta = ACTION_TYPE_META[log.action_type] ?? {
-                emoji: '?',
+                icon: HelpCircle,
                 label: log.action_type,
                 color: 'bg-gray-100 text-gray-700',
               };
               const resMeta = RESULT_META[log.validation_result] ?? {
-                icon: '!',
+                icon: HelpCircle,
                 label: log.validation_result.replace(/_/g, ' '),
                 color: 'text-red-600 dark:text-red-400',
               };
@@ -552,7 +568,7 @@ export default function ScanLogsPage() {
                   {/* Action type badge */}
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${actionMeta.color}`}>
-                      <span>{actionMeta.emoji}</span> {actionMeta.label}
+                      <actionMeta.icon className="h-3 w-3" /> {actionMeta.label}
                     </span>
                   </td>
 
@@ -564,7 +580,7 @@ export default function ScanLogsPage() {
                   {/* Result */}
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center gap-1 text-xs font-medium ${resMeta.color}`}>
-                      <span>{resMeta.icon}</span> {resMeta.label}
+                      <resMeta.icon className="h-3 w-3" /> {resMeta.label}
                     </span>
                   </td>
 

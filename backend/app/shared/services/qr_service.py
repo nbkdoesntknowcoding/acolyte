@@ -247,15 +247,19 @@ class QRService:
     async def process_mode_b_scan(
         self,
         user_id: UUID,
-        user_device: DeviceTrust,
+        user_device: Optional[DeviceTrust],
         scanned_qr_data: str,
         college_id: UUID,
         gps: Optional[dict] = None,
+        skip_device_validation: bool = False,
     ) -> ScanResult:
         """Process a Mode B scan — user scans a location/action QR code.
 
         Parses the acolyte:// URL, validates HMAC signature, then runs
         the same pipeline as Mode A (steps 5-11).
+
+        When skip_device_validation=True (admin scans), device trust is not
+        required. The scan log records device_validated=False with no device_trust_id.
         """
         # Parse the QR URL
         parsed = self._parse_action_qr(scanned_qr_data)
@@ -347,17 +351,18 @@ class QRService:
                 handler_result = {"error": str(e)}
 
         # Create scan log
+        device_validated = not skip_device_validation
         scan_log = QRScanLog(
             college_id=action_point.college_id,
             user_id=user_id,
-            device_trust_id=user_device.id,
+            device_trust_id=user_device.id if user_device else None,
             action_type=action_point.action_type,
             action_point_id=action_point.id,
             qr_mode="mode_b",
             scan_latitude=gps.get("lat") if gps else None,
             scan_longitude=gps.get("lng") if gps else None,
             geo_validated=True if gps and action_point.security_level in ("elevated", "strict") else None,
-            device_validated=True,
+            device_validated=device_validated,
             validation_result="success",
             extra_data=handler_result,
         )

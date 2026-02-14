@@ -15,14 +15,25 @@
 import { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
+  Activity,
   ArrowLeft,
+  BookOpen,
+  Calendar,
+  CheckCircle,
+  Coffee,
+  FileText,
+  FlaskConical,
+  Home,
+  Loader2,
+  MinusSquare,
   Printer,
+  QrCode,
   CheckSquare,
   Square,
-  Loader2,
-  QrCode,
-  MinusSquare,
+  Truck,
+  Wrench,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -51,21 +62,21 @@ const INSTRUCTION_TEXT: Record<string, string> = {
   custom: 'Scan this QR code',
 };
 
-const ACTION_ICON: Record<string, string> = {
-  mess_entry: '\uD83C\uDF5D',
-  library_checkout: '\uD83D\uDCDA',
-  library_return: '\uD83D\uDCDA',
-  attendance_mark: '\u2705',
-  hostel_checkin: '\uD83C\uDFE0',
-  clinical_posting: '\uD83C\uDFE5',
-  equipment_checkout: '\uD83D\uDD27',
-  event_checkin: '\uD83C\uDFAB',
-  exam_hall_entry: '\uD83D\uDCDD',
-  library_visit: '\uD83D\uDCDA',
-  lab_access: '\uD83E\uDDEA',
-  sports_facility: '\u26BD',
-  parking_entry: '\uD83C\uDD7F\uFE0F',
-  custom: '\uD83D\uDD18',
+const ACTION_ICON: Record<string, LucideIcon> = {
+  mess_entry: Coffee,
+  library_checkout: BookOpen,
+  library_return: BookOpen,
+  attendance_mark: CheckCircle,
+  hostel_checkin: Home,
+  clinical_posting: Activity,
+  equipment_checkout: Wrench,
+  event_checkin: Calendar,
+  exam_hall_entry: FileText,
+  library_visit: BookOpen,
+  lab_access: FlaskConical,
+  sports_facility: Activity,
+  parking_entry: Truck,
+  custom: QrCode,
 };
 
 const SIZE_OPTIONS = [
@@ -435,7 +446,6 @@ export default function QRPrintPage() {
               />
               <div className="qr-name">{point.name}</div>
               <div className="qr-instruction">
-                {ACTION_ICON[point.action_type] ?? '\uD83D\uDD18'}{' '}
                 {INSTRUCTION_TEXT[point.action_type] ?? 'Scan this QR code'}
               </div>
               <div className="qr-location">
@@ -467,7 +477,7 @@ function QRCard({
 }) {
   const instruction =
     INSTRUCTION_TEXT[point.action_type] ?? 'Scan this QR code';
-  const icon = ACTION_ICON[point.action_type] ?? '\uD83D\uDD18';
+  const IconComp = ACTION_ICON[point.action_type] ?? QrCode;
   const label = point.action_type
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase());
@@ -494,7 +504,7 @@ function QRCard({
           {point.location_code}
         </p>
         <div className="mt-2 flex items-center gap-1 text-xs text-gray-400">
-          <span>{icon}</span>
+          <IconComp className="h-3 w-3" />
           <span>{label}</span>
         </div>
         <p className="mt-1 text-xs italic text-gray-500">{instruction}</p>

@@ -11,6 +11,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.core.events import publish_event
 from app.engines.integration.sms import SMSGateway
 from app.shared.models.device_trust import (
@@ -96,6 +97,7 @@ class DeviceTrustService:
         await self.db.flush()
 
         virtual_number = self.sms_gateway.get_virtual_number()
+        settings = get_settings()
 
         return {
             "verification_id": device.id,
@@ -103,6 +105,7 @@ class DeviceTrustService:
             "sms_body_template": f"ACOLYTE VERIFY {code}",
             "verification_code": code,
             "expires_in_seconds": 600,
+            "dev_mode": settings.DEVICE_TRUST_DEV_MODE,
         }
 
     # ── METHOD 2: Process Incoming SMS ──
@@ -172,7 +175,12 @@ class DeviceTrustService:
     # ── METHOD 3: Check Registration Status ──
 
     async def check_registration_status(self, user_id: UUID, verification_id: UUID) -> dict:
-        """Check the status of a pending device registration."""
+        """Check the status of a pending device registration.
+
+        In dev mode (DEVICE_TRUST_DEV_MODE=true), auto-activates the device
+        after DEVICE_TRUST_DEV_DELAY_SECONDS to simulate SMS verification
+        without needing a real SMS gateway.
+        """
         result = await self.db.execute(
             select(DeviceTrust).where(
                 DeviceTrust.id == verification_id,
@@ -182,6 +190,39 @@ class DeviceTrustService:
         device = result.scalar_one_or_none()
         if not device:
             raise HTTPException(404, "Verification request not found")
+
+        # Dev mode auto-verification: if pending and enough time has passed, activate
+        settings = get_settings()
+        if (
+            device.status == "pending_sms_verification"
+            and settings.DEVICE_TRUST_DEV_MODE
+        ):
+            elapsed = (datetime.now(timezone.utc) - device.created_at).total_seconds()
+            if elapsed >= settings.DEVICE_TRUST_DEV_DELAY_SECONDS:
+                device.status = "active"
+                device.verified_phone = device.claimed_phone
+                device.phone_verified_at = datetime.now(timezone.utc)
+                device.sms_verified = True
+
+                token = create_device_trust_token(
+                    str(device.user_id), str(device.id), device.device_fingerprint
+                )
+                device.device_trust_token_hash = hash_verification_code(token)
+                device.token_issued_at = datetime.now(timezone.utc)
+                device.token_expires_at = datetime.now(timezone.utc) + timedelta(
+                    days=settings.DEVICE_TOKEN_EXPIRY_DAYS
+                )
+                await self.db.flush()
+
+                logger.info(
+                    "Dev mode: auto-activated device for user %s", device.user_id
+                )
+
+                return {
+                    "status": "active",
+                    "device_trust_token": token,
+                    "token_expires_at": device.token_expires_at,
+                }
 
         if device.status == "active":
             # Regenerate token for the response
