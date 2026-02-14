@@ -4,6 +4,7 @@ Endpoints:
 - GET  /api/v1/qr/identity         — Get identity QR token
 - GET  /api/v1/qr/identity/refresh  — Force refresh QR token
 - GET  /api/v1/qr/admin-identity    — Get admin identity QR token (no device trust)
+- POST /api/v1/qr/admin-scan/mode-b — Admin scans Mode B QR (no device trust)
 - POST /api/v1/qr/scan/mode-a      — Scanner reads someone's QR
 - POST /api/v1/qr/scan/mode-b      — User scans location QR
 - POST /api/v1/qr/scan/mode-b/confirm — Confirm multi-step flow
@@ -41,6 +42,9 @@ from app.shared.services.qr_token_service import (
     clerk_user_id_to_uuid,
     create_admin_identity_token,
 )
+
+# Admin role check — org role from Clerk JWT
+ADMIN_ROLES = {"org:admin", "admin", "org:dean", "dean", "org:management", "management"}
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +134,41 @@ async def get_admin_identity_qr(
         token=token,
         expires_in=300,
         refresh_in=240,
+    )
+
+
+# ---------------------------------------------------------------------------
+# 2c. POST /admin-scan/mode-b — Admin scans Mode B QR (no device trust)
+# ---------------------------------------------------------------------------
+
+@router.post("/admin-scan/mode-b", response_model=ScanResult)
+async def admin_scan_mode_b(
+    body: ModeBScanRequest,
+    user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Admin scans a Mode B QR code using Clerk JWT only — no device trust.
+
+    Admins use this to:
+    1. Test QR codes after creating them on the web dashboard
+    2. Record their own mess/attendance/hostel scans from the admin mobile app
+
+    Requires admin, dean, or management role.
+    """
+    from fastapi import HTTPException
+
+    if user.role not in ("admin", "dean", "management"):
+        raise HTTPException(403, "Admin role required for this endpoint")
+
+    uid = clerk_user_id_to_uuid(user.user_id)
+    service = QRService(db)
+    return await service.process_mode_b_scan(
+        user_id=uid,
+        user_device=None,
+        scanned_qr_data=body.scanned_qr_data,
+        college_id=user.college_id,
+        gps=body.gps.model_dump() if body.gps else None,
+        skip_device_validation=True,
     )
 
 
