@@ -68,6 +68,8 @@ class Settings(BaseSettings):
     QR_IDENTITY_TOKEN_EXPIRY_SECONDS: int = 300
     QR_IDENTITY_REFRESH_SECONDS: int = 60
     DEVICE_RESET_FLAG_THRESHOLD: int = 3  # Flag after N resets in 30 days
+    DEVICE_TRUST_DEV_MODE: bool = True  # Auto-verify without real SMS (set False in production)
+    DEVICE_TRUST_DEV_DELAY_SECONDS: int = 3  # Simulated SMS round-trip delay
 
     # --- AQP: SMS Gateway ---
     SMS_GATEWAY_PROVIDER: str = "mock"  # "msg91" | "kaleyra" | "mock"

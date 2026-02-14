@@ -51,6 +51,7 @@ class RegisterDeviceResponse(BaseModel):
     sms_body_template: str
     verification_code: str
     expires_in_seconds: int
+    dev_mode: bool = False
 
 
 class DeviceStatusResponse(BaseModel):
