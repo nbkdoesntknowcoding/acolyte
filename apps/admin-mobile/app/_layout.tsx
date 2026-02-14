@@ -50,8 +50,9 @@ function AuthGate() {
   useEffect(() => {
     if (!isLoaded) return;
 
-    const inAuthGroup = segments[0] === "(auth)";
-    const onRegisterDevice = segments[1] === "register-device";
+    const segs = segments as string[];
+    const inAuthGroup = segs[0] === "(auth)";
+    const onRegisterDevice = segs[1] === "register-device";
 
     if (!isSignedIn && !inAuthGroup) {
       router.replace("/(auth)/sign-in");
