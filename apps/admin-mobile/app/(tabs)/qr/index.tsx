@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import { View, Text, StyleSheet, Animated } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useUser } from "@clerk/clerk-expo";
 import * as Brightness from "expo-brightness";
 import QRCode from "react-native-qrcode-svg";
@@ -73,7 +72,7 @@ export default function QRScreen() {
   const orgName = user?.organizationMemberships?.[0]?.organization?.name ?? "";
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
+    <View style={styles.safe}>
       <View style={styles.container}>
         {/* Profile info */}
         <View style={styles.profile}>
@@ -146,7 +145,7 @@ export default function QRScreen() {
           </Text>
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

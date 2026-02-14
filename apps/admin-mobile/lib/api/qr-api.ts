@@ -63,6 +63,14 @@ export interface ActionPointStats {
   daily_breakdown: { date: string; count: number }[];
 }
 
+export interface ScanResult {
+  success: boolean;
+  action_type?: string;
+  message: string;
+  data?: Record<string, unknown>;
+  scan_log_id?: string;
+}
+
 // ---------------------------------------------------------------------------
 // API functions
 // ---------------------------------------------------------------------------
@@ -111,5 +119,13 @@ export const qrApi = {
       .get<{ data: { hour: number; count: number }[] }>(
         "/admin/qr/scan-logs/hourly",
       )
+      .then((r) => r.data),
+
+  adminScanModeB: (
+    api: AxiosInstance,
+    data: { scanned_qr_data: string; gps?: { lat: number; lng: number } },
+  ) =>
+    api
+      .post<ScanResult>("/qr/admin-scan/mode-b", data)
       .then((r) => r.data),
 };
