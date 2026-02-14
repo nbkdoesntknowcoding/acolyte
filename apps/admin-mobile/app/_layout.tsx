@@ -1,6 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { StatusBar } from "expo-status-bar";
-import { Stack, useRouter, useSegments } from "expo-router";
+import {
+  Stack,
+  useRouter,
+  useSegments,
+  useRootNavigationState,
+} from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAuth } from "@clerk/clerk-expo";
 import { AuthProvider } from "@/lib/auth/clerk-provider";
@@ -29,26 +34,36 @@ function AuthGate() {
   const { isSignedIn, isLoaded } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const rootNavState = useRootNavigationState();
   const [deviceChecked, setDeviceChecked] = useState(false);
   const [deviceRegistered, setDeviceRegistered] = useState(false);
 
-  // Check device registration status when signed in
+  // Stable string key from segments — useSegments() returns a new array ref
+  // on every render, so using it directly as a dependency causes infinite loops.
+  const segmentKey = (segments as string[]).join("/");
+
+  // Recheck device registration (called on mount + after register-device stores token)
+  const recheckDevice = useCallback(async () => {
+    const hasToken = await tokenManager.isRegistered();
+    const skipped = await SecureStore.getItemAsync("device_trust_skipped");
+    setDeviceRegistered(hasToken || skipped === "true");
+    setDeviceChecked(true);
+  }, []);
+
+  // Check device registration when signed in, and re-check when route changes
+  // (so that after register-device stores a token, we pick it up).
   useEffect(() => {
     if (!isSignedIn) {
       setDeviceChecked(false);
+      setDeviceRegistered(false);
       return;
     }
+    recheckDevice();
+  }, [isSignedIn, segmentKey, recheckDevice]);
 
-    (async () => {
-      const hasToken = await tokenManager.isRegistered();
-      const skipped = await SecureStore.getItemAsync("device_trust_skipped");
-      setDeviceRegistered(hasToken || skipped === "true");
-      setDeviceChecked(true);
-    })();
-  }, [isSignedIn]);
-
+  // Navigation guard — only redirect when the navigator is fully mounted
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || !rootNavState?.key) return;
 
     const segs = segments as string[];
     const inAuthGroup = segs[0] === "(auth)";
@@ -63,9 +78,9 @@ function AuthGate() {
         router.replace("/(tabs)/dashboard");
       }
     }
-  }, [isSignedIn, isLoaded, deviceChecked, deviceRegistered, segments]);
+  }, [isSignedIn, isLoaded, deviceChecked, deviceRegistered, segmentKey, rootNavState?.key]);
 
-  if (!isLoaded || (isSignedIn && !deviceChecked)) {
+  if (!isLoaded || !rootNavState?.key || (isSignedIn && !deviceChecked)) {
     return (
       <View style={styles.loader}>
         <ActivityIndicator size="large" color={colors.primary} />
