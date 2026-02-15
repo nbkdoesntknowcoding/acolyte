@@ -71,6 +71,13 @@ jobs:
           PGPASSWORD=postgres psql -h localhost -U postgres -d acolyte_test -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
           cd backend && alembic upgrade head
 
+      - name: Seed platform test data
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/acolyte_test
+        run: |
+          cd backend
+          python -m scripts.seed_platform_data
+
       - name: Run tests
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/acolyte_test
