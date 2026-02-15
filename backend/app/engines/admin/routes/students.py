@@ -145,6 +145,118 @@ async def list_students(
 
 
 # ---------------------------------------------------------------------------
+# SEAT MATRIX — GET /seat-matrix
+# (MUST be defined before /{student_id} to avoid path parameter conflict)
+# ---------------------------------------------------------------------------
+
+@router.get("/seat-matrix", response_model=list[SeatMatrixItem])
+async def get_seat_matrix(
+    user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Quota-wise seat fill status.
+
+    Returns the number of total seats, filled seats, and vacancies per
+    admission quota based on the college's sanctioned/total intake and
+    current active/enrolled students.
+    """
+    # Get college info for sanctioned intake
+    college_result = await db.execute(
+        select(College).where(College.id == user.college_id)
+    )
+    college = college_result.scalar_one_or_none()
+    total_intake = college.total_intake if college else 0
+
+    # NMC standard quota splits (percentage of total intake)
+    # Colleges can override via config, but these are the regulatory defaults
+    quota_percentages: dict[str, float] = {
+        "AIQ": 0.15,
+        "State": 0.50,
+        "Management": 0.25,
+        "NRI": 0.10,
+    }
+
+    # Override from college config if available
+    if college and college.config and "quota_percentages" in college.config:
+        quota_percentages = college.config["quota_percentages"]
+
+    # Count filled seats per quota (active + enrolled students)
+    filled_result = await db.execute(
+        select(
+            Student.admission_quota,
+            func.count(Student.id),
+        ).where(
+            Student.status.in_(["active", "enrolled"]),
+        ).group_by(Student.admission_quota)
+    )
+    filled_by_quota: dict[str, int] = {
+        (row[0] or "Unknown"): row[1] for row in filled_result.all()
+    }
+
+    seat_matrix: list[SeatMatrixItem] = []
+    for quota, pct in quota_percentages.items():
+        total_seats = math.ceil(total_intake * pct)
+        filled = filled_by_quota.get(quota, 0)
+        vacant = max(0, total_seats - filled)
+        fill_pct = round((filled / total_seats * 100), 1) if total_seats > 0 else 0.0
+
+        seat_matrix.append(
+            SeatMatrixItem(
+                quota=quota,
+                total_seats=total_seats,
+                filled_seats=filled,
+                vacant_seats=vacant,
+                fill_percentage=fill_pct,
+            )
+        )
+
+    return seat_matrix
+
+
+# ---------------------------------------------------------------------------
+# NMC UPLOAD — POST /nmc-upload
+# (MUST be defined before /{student_id} to avoid path parameter conflict)
+# ---------------------------------------------------------------------------
+
+@router.post("/nmc-upload", response_model=NMCUploadResponse)
+async def mark_nmc_uploaded(
+    body: NMCUploadRequest,
+    user: CurrentUser = Depends(
+        require_role(UserRole.ADMIN, UserRole.DEAN, UserRole.MANAGEMENT)
+    ),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Mark students as uploaded to the NMC portal.
+
+    Sets nmc_uploaded=True and nmc_upload_date=now() for all provided student IDs.
+    Only updates students that belong to the current tenant (RLS-enforced).
+
+    Requires: admin, dean, or management role.
+    """
+    now = datetime.now(timezone.utc)
+
+    result = await db.execute(
+        update(Student)
+        .where(Student.id.in_(body.student_ids))
+        .values(nmc_uploaded=True, nmc_upload_date=now)
+        .returning(Student.id)
+    )
+    updated_ids = [row[0] for row in result.all()]
+    await db.commit()
+
+    if not updated_ids:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No matching students found for the given IDs",
+        )
+
+    return NMCUploadResponse(
+        updated_count=len(updated_ids),
+        student_ids=updated_ids,
+    )
+
+
+# ---------------------------------------------------------------------------
 # GET — GET /{student_id}
 # ---------------------------------------------------------------------------
 
@@ -355,113 +467,3 @@ async def get_student_fee_summary(
     across all academic years and fee structures matching the student's quota.
     """
     return await fee_service.calculate_outstanding(student_id)
-
-
-# ---------------------------------------------------------------------------
-# SEAT MATRIX — GET /seat-matrix
-# ---------------------------------------------------------------------------
-
-@router.get("/seat-matrix", response_model=list[SeatMatrixItem])
-async def get_seat_matrix(
-    user: CurrentUser = Depends(get_current_user),
-    db: AsyncSession = Depends(get_tenant_db),
-):
-    """Quota-wise seat fill status.
-
-    Returns the number of total seats, filled seats, and vacancies per
-    admission quota based on the college's sanctioned/total intake and
-    current active/enrolled students.
-    """
-    # Get college info for sanctioned intake
-    college_result = await db.execute(
-        select(College).where(College.id == user.college_id)
-    )
-    college = college_result.scalar_one_or_none()
-    total_intake = college.total_intake if college else 0
-
-    # NMC standard quota splits (percentage of total intake)
-    # Colleges can override via config, but these are the regulatory defaults
-    quota_percentages: dict[str, float] = {
-        "AIQ": 0.15,
-        "State": 0.50,
-        "Management": 0.25,
-        "NRI": 0.10,
-    }
-
-    # Override from college config if available
-    if college and college.config and "quota_percentages" in college.config:
-        quota_percentages = college.config["quota_percentages"]
-
-    # Count filled seats per quota (active + enrolled students)
-    filled_result = await db.execute(
-        select(
-            Student.admission_quota,
-            func.count(Student.id),
-        ).where(
-            Student.status.in_(["active", "enrolled"]),
-        ).group_by(Student.admission_quota)
-    )
-    filled_by_quota: dict[str, int] = {
-        (row[0] or "Unknown"): row[1] for row in filled_result.all()
-    }
-
-    seat_matrix: list[SeatMatrixItem] = []
-    for quota, pct in quota_percentages.items():
-        total_seats = math.ceil(total_intake * pct)
-        filled = filled_by_quota.get(quota, 0)
-        vacant = max(0, total_seats - filled)
-        fill_pct = round((filled / total_seats * 100), 1) if total_seats > 0 else 0.0
-
-        seat_matrix.append(
-            SeatMatrixItem(
-                quota=quota,
-                total_seats=total_seats,
-                filled_seats=filled,
-                vacant_seats=vacant,
-                fill_percentage=fill_pct,
-            )
-        )
-
-    return seat_matrix
-
-
-# ---------------------------------------------------------------------------
-# NMC UPLOAD — POST /nmc-upload
-# ---------------------------------------------------------------------------
-
-@router.post("/nmc-upload", response_model=NMCUploadResponse)
-async def mark_nmc_uploaded(
-    body: NMCUploadRequest,
-    user: CurrentUser = Depends(
-        require_role(UserRole.ADMIN, UserRole.DEAN, UserRole.MANAGEMENT)
-    ),
-    db: AsyncSession = Depends(get_tenant_db),
-):
-    """Mark students as uploaded to the NMC portal.
-
-    Sets nmc_uploaded=True and nmc_upload_date=now() for all provided student IDs.
-    Only updates students that belong to the current tenant (RLS-enforced).
-
-    Requires: admin, dean, or management role.
-    """
-    now = datetime.now(timezone.utc)
-
-    result = await db.execute(
-        update(Student)
-        .where(Student.id.in_(body.student_ids))
-        .values(nmc_uploaded=True, nmc_upload_date=now)
-        .returning(Student.id)
-    )
-    updated_ids = [row[0] for row in result.all()]
-    await db.commit()
-
-    if not updated_ids:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No matching students found for the given IDs",
-        )
-
-    return NMCUploadResponse(
-        updated_count=len(updated_ids),
-        student_ids=updated_ids,
-    )
