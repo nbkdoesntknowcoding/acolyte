@@ -109,6 +109,7 @@ def _make_mock_settings():
     settings = get_settings()
     mock_settings = MagicMock(wraps=settings)
     mock_settings.MSG91_WEBHOOK_SECRET = "test-webhook-secret"
+    mock_settings.DEVICE_TRUST_DEV_MODE = False  # Don't auto-verify in tests
     return mock_settings
 
 
