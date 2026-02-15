@@ -60,19 +60,40 @@ def do_run_migrations(connection: Connection) -> None:
 
 
 async def run_async_migrations() -> None:
-    """Run migrations in async mode for Neon PostgreSQL."""
+    """Run migrations in async mode for Neon PostgreSQL.
+
+    Retries connection up to 3 times to handle Neon serverless cold-start
+    (can take 5-10s to wake from idle, causing CancelledError on first attempt).
+    """
     configuration = config.get_section(config.config_ini_section, {})
     configuration["sqlalchemy.url"] = settings.DATABASE_URL
-    connectable = async_engine_from_config(
-        configuration,
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
 
-    async with connectable.connect() as connection:
-        await connection.run_sync(do_run_migrations)
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            connectable = async_engine_from_config(
+                configuration,
+                prefix="sqlalchemy.",
+                poolclass=pool.NullPool,
+                connect_args={
+                    "timeout": 30,
+                    "statement_cache_size": 0,  # Required for Neon PgBouncer
+                },
+            )
 
-    await connectable.dispose()
+            async with connectable.connect() as connection:
+                await connection.run_sync(do_run_migrations)
+
+            await connectable.dispose()
+            return  # Success — exit retry loop
+        except Exception as e:
+            if attempt < max_retries - 1:
+                wait = 5 * (attempt + 1)
+                print(f"Migration connection attempt {attempt + 1}/{max_retries} failed: {e}")
+                print(f"Retrying in {wait}s (Neon cold-start)...")
+                await asyncio.sleep(wait)
+            else:
+                raise
 
 
 def run_migrations_online() -> None:
