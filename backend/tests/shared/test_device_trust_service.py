@@ -186,7 +186,12 @@ class TestCheckRegistrationStatus:
         mock_result.scalar_one_or_none.return_value = device
         db.execute.return_value = mock_result
 
-        result = await service.check_registration_status(uuid4(), uuid4())
+        # Disable dev mode auto-verification so the device stays pending
+        with patch("app.shared.services.device_trust_service.get_settings") as mock_gs:
+            mock_settings = MagicMock()
+            mock_settings.DEVICE_TRUST_DEV_MODE = False
+            mock_gs.return_value = mock_settings
+            result = await service.check_registration_status(uuid4(), uuid4())
         assert result["status"] == "pending"
 
     @pytest.mark.asyncio
