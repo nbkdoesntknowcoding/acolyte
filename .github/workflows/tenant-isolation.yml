@@ -35,6 +35,16 @@ jobs:
           cd backend
           pip install -r requirements-test.txt
 
+      - name: Create DB extensions and run migrations
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/acolyte_test
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d acolyte_test -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
+          PGPASSWORD=postgres psql -h localhost -U postgres -d acolyte_test -c "CREATE EXTENSION IF NOT EXISTS vector;"
+          PGPASSWORD=postgres psql -h localhost -U postgres -d acolyte_test -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
+          PGPASSWORD=postgres psql -h localhost -U postgres -d acolyte_test -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+          cd backend && alembic upgrade head
+
       - name: Verify no cross-tenant data leaks
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/acolyte_test
