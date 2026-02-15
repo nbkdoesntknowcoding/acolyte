@@ -12,7 +12,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies.auth import get_current_user, get_tenant_db, require_role
@@ -142,17 +142,30 @@ async def list_students(
     total = total_result.scalar_one()
 
     # Sort
-    sort_col = {
-        "name": Student.name,
-        "neet_score": Student.neet_score,
-        "admission_date": Student.admission_date,
-        "created_at": Student.created_at,
-    }.get(sort_by or "name", Student.name)
-    order = sort_col.desc() if sort_order == "desc" else sort_col.asc()
+    offset = (page - 1) * page_size
+    if sort_by == "pipeline_priority":
+        status_order = case(
+            (Student.status == "applied", 1),
+            (Student.status == "documents_submitted", 2),
+            (Student.status == "under_verification", 3),
+            (Student.status == "fee_pending", 4),
+            (Student.status == "enrolled", 5),
+            (Student.status == "active", 6),
+            else_=7,
+        )
+        query = query.order_by(status_order, Student.name)
+    else:
+        sort_col = {
+            "name": Student.name,
+            "neet_score": Student.neet_score,
+            "admission_date": Student.admission_date,
+            "created_at": Student.created_at,
+        }.get(sort_by or "name", Student.name)
+        order = sort_col.desc() if sort_order == "desc" else sort_col.asc()
+        query = query.order_by(order)
 
     # Paginate
-    offset = (page - 1) * page_size
-    query = query.order_by(order).offset(offset).limit(page_size)
+    query = query.offset(offset).limit(page_size)
     result = await db.execute(query)
     students = result.scalars().all()
 
@@ -208,16 +221,27 @@ async def get_seat_matrix(
     total_intake = college.total_intake if college else 0
 
     # NMC standard quota splits (percentage of total intake)
-    quota_percentages: dict[str, float] = {
-        "AIQ": 0.15,
-        "State": 0.50,
-        "Management": 0.25,
-        "NRI": 0.10,
-    }
+    quota_splits: list[tuple[str, float]] = [
+        ("AIQ", 0.15),
+        ("State", 0.45),
+        ("Management", 0.30),
+        ("NRI", 0.10),
+    ]
 
     # Override from college config if available
     if college and college.config and "quota_percentages" in college.config:
-        quota_percentages = college.config["quota_percentages"]
+        quota_splits = list(college.config["quota_percentages"].items())
+
+    # Distribute seats so they add up to EXACTLY total_intake
+    sanctioned_map: dict[str, int] = {}
+    remaining = total_intake
+    for i, (name, pct) in enumerate(quota_splits):
+        if i == len(quota_splits) - 1:
+            sanctioned_map[name] = remaining  # last quota gets remainder
+        else:
+            seats = round(total_intake * pct)
+            sanctioned_map[name] = seats
+            remaining -= seats
 
     # Count filled seats per quota for THIS admission year only
     filled_result = await db.execute(
@@ -235,15 +259,15 @@ async def get_seat_matrix(
     seat_matrix: list[SeatMatrixItem] = []
     total_sanctioned = 0
     total_filled = 0
-    for quota, pct in quota_percentages.items():
-        total_seats = math.ceil(total_intake * pct)
-        filled = filled_by_quota.get(quota, 0)
+    for quota_name, _ in quota_splits:
+        total_seats = sanctioned_map[quota_name]
+        filled = filled_by_quota.get(quota_name, 0)
         vacant = max(0, total_seats - filled)
         fill_pct = round((filled / total_seats * 100), 1) if total_seats > 0 else 0.0
 
         seat_matrix.append(
             SeatMatrixItem(
-                quota=quota,
+                quota=quota_name,
                 total_seats=total_seats,
                 filled_seats=filled,
                 vacant_seats=vacant,
