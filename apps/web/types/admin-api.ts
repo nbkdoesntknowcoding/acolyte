@@ -1851,6 +1851,25 @@ export interface SeatMatrixItem {
   fill_percentage: number;
 }
 
+export interface SeatMatrixResponse {
+  academic_year: string;
+  annual_intake: number;
+  quotas: SeatMatrixItem[];
+  total_sanctioned: number;
+  total_filled: number;
+  total_vacant: number;
+}
+
+export interface PipelineSummary {
+  applied: number;
+  documents_submitted: number;
+  under_verification: number;
+  fee_pending: number;
+  enrolled: number;
+  active: number;
+  total: number;
+}
+
 export interface RetirementForecastItem {
   faculty_id: string;
   faculty_name: string;

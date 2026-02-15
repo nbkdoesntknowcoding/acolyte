@@ -513,9 +513,24 @@ async def seed():
         all_student_ids = []
         student_quotas = {}  # student_uid -> quota
 
+        # Counseling round distribution per batch (150 students each)
+        # Round 1: ~60, Round 2: ~45, Mop-Up: ~30, Stray Vacancy: ~15
+        COUNSELING_ROUNDS = (
+            ["Round 1"] * 60 + ["Round 2"] * 45 +
+            ["Mop-Up"] * 30 + ["Stray Vacancy"] * 15
+        )
+
+        # Batch 2025 status distribution (realistic admission pipeline)
+        # 120 enrolled, 12 fee_pending, 8 under_verification, 6 documents_submitted, 4 applied
+        BATCH_2025_STATUSES = (
+            ["enrolled"] * 120 + ["fee_pending"] * 12 +
+            ["under_verification"] * 8 + ["documents_submitted"] * 6 +
+            ["applied"] * 4
+        )
+
         for batch_year in [2022, 2023, 2024, 2025]:
             phase, sem = BATCH_PHASES[batch_year]
-            q_offset = 0
+            batch_student_idx = 0  # position within this batch (0-149)
             for quota, qcount in QUOTA_DIST:
                 for qi in range(qcount):
                     stu_idx += 1
@@ -547,26 +562,54 @@ async def seed():
                     neet_pct = round(neet / 720 * 100, 1)
                     neet_rank = max(1, int(720000 - neet * 1000 + random.randint(-5000, 5000)))
 
+                    # NEET roll number: e.g. 2025-KA-123456
+                    neet_roll = f"{batch_year}-KA-{100000 + stu_idx:06d}"
+
+                    # Counseling round assignment
+                    c_round = COUNSELING_ROUNDS[batch_student_idx % len(COUNSELING_ROUNDS)]
+
+                    # Status: older batches = 'active', Batch 2025 = varied pipeline
+                    if batch_year == 2025:
+                        stu_status = BATCH_2025_STATUSES[batch_student_idx % len(BATCH_2025_STATUSES)]
+                        # Non-enrolled students don't have enrollment numbers yet
+                        if stu_status in ("applied", "documents_submitted"):
+                            enroll_num = None
+                        else:
+                            enroll_num = f"SIMSRC/{batch_year}/{stu_idx:04d}"
+                        nmc_up = stu_status == "enrolled"
+                    else:
+                        stu_status = "active"
+                        enroll_num = f"SIMSRC/{batch_year}/{stu_idx:04d}"
+                        nmc_up = True
+
+                    batch_student_idx += 1
+
                     await session.execute(text("""
                         INSERT INTO students (id, college_id, name, email, phone,
                             date_of_birth, gender, blood_group, nationality, religion, category,
                             father_name, mother_name, guardian_phone,
                             permanent_address, city, state, pin_code,
-                            neet_score, neet_rank, neet_percentile, neet_year,
-                            admission_quota, admission_date, admission_year,
+                            neet_roll_number, neet_score, neet_rank, neet_percentile, neet_year,
+                            admission_quota, counseling_round, admission_date, admission_year,
                             enrollment_number, current_phase, current_semester,
-                            batch_id, status, is_hosteler,
+                            batch_id, status, is_hosteler, nmc_uploaded,
                             class_12_board, class_12_percentage, pcb_percentage)
                         VALUES (:id, :cid, :name, :email, :phone,
                             :dob, :gender, :bg, 'Indian', :rel, :cat,
                             :father, :mother, :gphone,
                             :addr, :city, :state, :pin,
-                            :neet, :rank, :pct, :nyear,
-                            :quota, :adm_date, :adm_year,
+                            :neet_roll, :neet, :rank, :pct, :nyear,
+                            :quota, :c_round, :adm_date, :adm_year,
                             :enroll, :phase, :sem,
-                            :bid, 'active', :hostel,
+                            :bid, :stu_status, :hostel, :nmc_up,
                             :board, :c12pct, :pcb)
-                        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name
+                        ON CONFLICT (id) DO UPDATE SET
+                            name = EXCLUDED.name,
+                            status = EXCLUDED.status,
+                            counseling_round = EXCLUDED.counseling_round,
+                            neet_roll_number = EXCLUDED.neet_roll_number,
+                            nmc_uploaded = EXCLUDED.nmc_uploaded,
+                            enrollment_number = EXCLUDED.enrollment_number
                     """), {
                         "id": sid, "cid": cid,
                         "name": f"{first} {last}",
@@ -582,11 +625,15 @@ async def seed():
                         "city": random.choice(["Bangalore", "Mysore", "Mangalore", "Hubli", "Tumkur"]),
                         "state": random.choice(STATES_INDIA[:5]),
                         "pin": f"{random.randint(560001, 590999)}",
+                        "neet_roll": neet_roll,
                         "neet": neet, "rank": neet_rank, "pct": neet_pct, "nyear": batch_year,
-                        "quota": quota, "adm_date": adm_date, "adm_year": batch_year,
-                        "enroll": f"SIMSRC/{batch_year}/{stu_idx:04d}",
+                        "quota": quota, "c_round": c_round,
+                        "adm_date": adm_date, "adm_year": batch_year,
+                        "enroll": enroll_num,
                         "phase": phase, "sem": sem, "bid": BATCH_IDS[batch_year],
+                        "stu_status": stu_status,
                         "hostel": random.random() < 0.7,
+                        "nmc_up": nmc_up,
                         "board": random.choice(["CBSE", "Karnataka PUC", "ICSE", "Maharashtra HSC", "AP Board"]),
                         "c12pct": round(random.uniform(75, 98), 1),
                         "pcb": round(random.uniform(70, 98), 1),

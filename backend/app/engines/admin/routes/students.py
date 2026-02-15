@@ -89,16 +89,20 @@ async def list_students(
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
     search: str | None = Query(None, max_length=200, description="Search by name or enrollment number"),
-    status_filter: str | None = Query(None, alias="status", description="Filter by status"),
+    status_filter: str | None = Query(None, alias="status", description="Filter by status (comma-separated for multiple)"),
     batch_id: UUID | None = Query(None, description="Filter by batch"),
     current_phase: str | None = Query(None, description="Filter by current phase"),
     admission_quota: str | None = Query(None, description="Filter by admission quota"),
+    admission_year: int | None = Query(None, description="Filter by admission year"),
+    sort_by: str | None = Query(None, description="Sort by field (name, neet_score, admission_date, created_at)"),
+    sort_order: str | None = Query("asc", description="Sort order: asc or desc"),
     user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     """List students with pagination, search, and filters.
 
     Search matches against student name and enrollment number (case-insensitive).
+    Status filter supports comma-separated values for matching multiple statuses.
     All filters are optional and combinable.
     """
     # Base query — RLS already filters by college_id
@@ -111,27 +115,44 @@ async def list_students(
             or_(
                 Student.name.ilike(pattern),
                 Student.enrollment_number.ilike(pattern),
+                Student.phone.ilike(pattern),
+                Student.neet_roll_number.ilike(pattern),
             )
         )
 
     # Filters
     if status_filter:
-        query = query.where(Student.status == status_filter)
+        statuses = [s.strip() for s in status_filter.split(",") if s.strip()]
+        if len(statuses) == 1:
+            query = query.where(Student.status == statuses[0])
+        elif statuses:
+            query = query.where(Student.status.in_(statuses))
     if batch_id:
         query = query.where(Student.batch_id == batch_id)
     if current_phase:
         query = query.where(Student.current_phase == current_phase)
     if admission_quota:
         query = query.where(Student.admission_quota == admission_quota)
+    if admission_year is not None:
+        query = query.where(Student.admission_year == admission_year)
 
     # Count total matching rows
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar_one()
 
+    # Sort
+    sort_col = {
+        "name": Student.name,
+        "neet_score": Student.neet_score,
+        "admission_date": Student.admission_date,
+        "created_at": Student.created_at,
+    }.get(sort_by or "name", Student.name)
+    order = sort_col.desc() if sort_order == "desc" else sort_col.asc()
+
     # Paginate
     offset = (page - 1) * page_size
-    query = query.order_by(Student.name.asc()).offset(offset).limit(page_size)
+    query = query.order_by(order).offset(offset).limit(page_size)
     result = await db.execute(query)
     students = result.scalars().all()
 
@@ -149,17 +170,36 @@ async def list_students(
 # (MUST be defined before /{student_id} to avoid path parameter conflict)
 # ---------------------------------------------------------------------------
 
-@router.get("/seat-matrix", response_model=list[SeatMatrixItem])
+class SeatMatrixResponse(BaseModel):
+    """Seat matrix with college-level metadata."""
+    academic_year: str
+    annual_intake: int
+    quotas: list[SeatMatrixItem]
+    total_sanctioned: int
+    total_filled: int
+    total_vacant: int
+
+
+@router.get("/seat-matrix", response_model=SeatMatrixResponse)
 async def get_seat_matrix(
+    academic_year: str = Query("2025-26", description="Academic year e.g. 2025-26"),
     user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    """Quota-wise seat fill status.
+    """Quota-wise seat fill status for a given academic year.
 
-    Returns the number of total seats, filled seats, and vacancies per
-    admission quota based on the college's sanctioned/total intake and
-    current active/enrolled students.
+    Filters students by admission_year so each year shows only that
+    batch's intake numbers instead of counting all students across years.
     """
+    # Parse admission year from "2025-26" → 2025
+    try:
+        admission_year = int(academic_year.split("-")[0])
+    except (ValueError, IndexError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid academic_year format: {academic_year}. Expected e.g. 2025-26",
+        )
+
     # Get college info for sanctioned intake
     college_result = await db.execute(
         select(College).where(College.id == user.college_id)
@@ -168,7 +208,6 @@ async def get_seat_matrix(
     total_intake = college.total_intake if college else 0
 
     # NMC standard quota splits (percentage of total intake)
-    # Colleges can override via config, but these are the regulatory defaults
     quota_percentages: dict[str, float] = {
         "AIQ": 0.15,
         "State": 0.50,
@@ -180,13 +219,13 @@ async def get_seat_matrix(
     if college and college.config and "quota_percentages" in college.config:
         quota_percentages = college.config["quota_percentages"]
 
-    # Count filled seats per quota (active + enrolled students)
+    # Count filled seats per quota for THIS admission year only
     filled_result = await db.execute(
         select(
             Student.admission_quota,
             func.count(Student.id),
         ).where(
-            Student.status.in_(["active", "enrolled"]),
+            Student.admission_year == admission_year,
         ).group_by(Student.admission_quota)
     )
     filled_by_quota: dict[str, int] = {
@@ -194,6 +233,8 @@ async def get_seat_matrix(
     }
 
     seat_matrix: list[SeatMatrixItem] = []
+    total_sanctioned = 0
+    total_filled = 0
     for quota, pct in quota_percentages.items():
         total_seats = math.ceil(total_intake * pct)
         filled = filled_by_quota.get(quota, 0)
@@ -209,8 +250,17 @@ async def get_seat_matrix(
                 fill_percentage=fill_pct,
             )
         )
+        total_sanctioned += total_seats
+        total_filled += filled
 
-    return seat_matrix
+    return SeatMatrixResponse(
+        academic_year=academic_year,
+        annual_intake=total_intake,
+        quotas=seat_matrix,
+        total_sanctioned=total_sanctioned,
+        total_filled=total_filled,
+        total_vacant=max(0, total_sanctioned - total_filled),
+    )
 
 
 # ---------------------------------------------------------------------------

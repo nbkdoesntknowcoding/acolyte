@@ -222,3 +222,56 @@ async def get_quota_analysis(
         )
 
     return QuotaAnalysisResponse(quotas=quotas, grand_total=grand_total)
+
+
+# ---------------------------------------------------------------------------
+# GET /pipeline-summary — status counts for tab badges
+# ---------------------------------------------------------------------------
+
+class PipelineSummary(BaseModel):
+    """Count of students per status for a given admission year."""
+    applied: int = 0
+    documents_submitted: int = 0
+    under_verification: int = 0
+    fee_pending: int = 0
+    enrolled: int = 0
+    active: int = 0
+    total: int = 0
+
+
+@router.get("/pipeline-summary", response_model=PipelineSummary)
+async def get_pipeline_summary(
+    academic_year: str = Query("2025-26", description="Academic year e.g. 2025-26"),
+    user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Status counts for a given admission year — used for tab badge counts."""
+    try:
+        admission_year = int(academic_year.split("-")[0])
+    except (ValueError, IndexError):
+        from fastapi import HTTPException, status as http_status
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid academic_year format: {academic_year}",
+        )
+
+    result = await db.execute(
+        select(
+            Student.status,
+            func.count(Student.id).label("count"),
+        )
+        .where(Student.admission_year == admission_year)
+        .group_by(Student.status)
+    )
+
+    counts = {r[0]: r[1] for r in result.all()}
+
+    return PipelineSummary(
+        applied=counts.get("applied", 0),
+        documents_submitted=counts.get("documents_submitted", 0),
+        under_verification=counts.get("under_verification", 0),
+        fee_pending=counts.get("fee_pending", 0),
+        enrolled=counts.get("enrolled", 0),
+        active=counts.get("active", 0),
+        total=sum(counts.values()),
+    )

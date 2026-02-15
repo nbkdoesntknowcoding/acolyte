@@ -116,7 +116,7 @@ export function SeatMatrix({ quotas }: SeatMatrixProps) {
                             "h-1.5 rounded-full",
                             PROGRESS_COLORS[color],
                           )}
-                          style={{ width: `${q.fill_percentage}%` }}
+                          style={{ width: `${Math.min(q.fill_percentage, 100)}%` }}
                         />
                       </div>
                       <span

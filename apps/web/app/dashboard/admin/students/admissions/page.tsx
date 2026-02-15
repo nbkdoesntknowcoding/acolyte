@@ -15,6 +15,11 @@ import {
   ChevronRight,
   AlertTriangle,
   Loader2,
+  Users,
+  UserCheck,
+  UserMinus,
+  Clock,
+  Check,
 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
@@ -25,17 +30,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { SeatMatrix } from "@/components/admin/seat-matrix";
 import { CounselingTimeline } from "@/components/admin/counseling-timeline";
-import { ComplianceAlertBar } from "@/components/admin/compliance-alert-bar";
 import { cn } from "@/lib/utils";
 
-import { useSeatMatrix, useStudents, useCreateStudent } from "@/lib/hooks/admin/use-students";
+import {
+  useSeatMatrix,
+  useStudents,
+  useCreateStudent,
+  usePipelineSummary,
+} from "@/lib/hooks/admin/use-students";
 import { useCounselingRounds } from "@/lib/hooks/admin/use-admissions";
-import type { StudentResponse, StudentCreate } from "@/types/admin-api";
+import type { StudentResponse, StudentCreate, SeatMatrixItem } from "@/types/admin-api";
 
 // ---------------------------------------------------------------------------
-// Pipeline status config — matches backend student statuses
+// Pipeline status config
 // ---------------------------------------------------------------------------
 
 type PipelineStatus =
@@ -47,37 +55,37 @@ type PipelineStatus =
 
 const PIPELINE_CONFIG: Record<
   PipelineStatus,
-  { label: string; progress: number; color: string; textColor: string }
+  { label: string; color: string; textColor: string; dotColor: string }
 > = {
   applied: {
     label: "Applied",
-    progress: 10,
-    color: "bg-gray-500",
-    textColor: "text-gray-400",
+    color: "bg-zinc-500/10 text-zinc-300",
+    textColor: "text-zinc-400",
+    dotColor: "bg-zinc-400",
   },
   documents_submitted: {
     label: "Docs Submitted",
-    progress: 30,
-    color: "bg-orange-400",
-    textColor: "text-orange-400",
+    color: "bg-blue-500/10 text-blue-400",
+    textColor: "text-blue-400",
+    dotColor: "bg-blue-400",
   },
   under_verification: {
-    label: "Under Verification",
-    progress: 50,
-    color: "bg-blue-500",
-    textColor: "text-blue-500",
+    label: "Verification",
+    color: "bg-amber-500/10 text-amber-400",
+    textColor: "text-amber-400",
+    dotColor: "bg-amber-400",
   },
   fee_pending: {
     label: "Fee Pending",
-    progress: 75,
-    color: "bg-yellow-500",
-    textColor: "text-yellow-500",
+    color: "bg-orange-500/10 text-orange-400",
+    textColor: "text-orange-400",
+    dotColor: "bg-orange-400",
   },
   enrolled: {
     label: "Enrolled",
-    progress: 100,
-    color: "bg-emerald-500",
-    textColor: "text-emerald-500",
+    color: "bg-emerald-500/10 text-emerald-400",
+    textColor: "text-emerald-400",
+    dotColor: "bg-emerald-400",
   },
 };
 
@@ -90,30 +98,37 @@ const ADMISSION_STATUSES: PipelineStatus[] = [
 ];
 
 const CATEGORY_STYLES: Record<string, string> = {
-  General: "border-purple-800 bg-purple-900/30 text-purple-300",
-  OBC: "border-orange-800 bg-orange-900/30 text-orange-300",
-  "OBC-NCL": "border-orange-800 bg-orange-900/30 text-orange-300",
-  SC: "border-blue-800 bg-blue-900/30 text-blue-300",
-  ST: "border-teal-800 bg-teal-900/30 text-teal-300",
-  EWS: "border-amber-800 bg-amber-900/30 text-amber-300",
-  PwD: "border-pink-800 bg-pink-900/30 text-pink-300",
+  General: "bg-zinc-500/10 text-zinc-300",
+  OBC: "bg-blue-500/10 text-blue-400",
+  "OBC-NCL": "bg-blue-500/10 text-blue-400",
+  SC: "bg-purple-500/10 text-purple-400",
+  ST: "bg-orange-500/10 text-orange-400",
+  EWS: "bg-cyan-500/10 text-cyan-400",
+  PwD: "bg-pink-500/10 text-pink-400",
 };
 
 const QUOTA_STYLES: Record<string, string> = {
-  AIQ: "border-blue-800 bg-blue-900/30 text-blue-300",
-  State: "border-green-800 bg-green-900/30 text-green-300",
-  Management: "border-blue-800 bg-blue-900/30 text-blue-300",
-  NRI: "border-teal-800 bg-teal-900/30 text-teal-300",
-  Institutional: "border-indigo-800 bg-indigo-900/30 text-indigo-300",
+  AIQ: "bg-blue-500/10 text-blue-400",
+  State: "bg-emerald-500/10 text-emerald-400",
+  Management: "bg-purple-500/10 text-purple-400",
+  NRI: "bg-amber-500/10 text-amber-400",
+  Institutional: "bg-zinc-500/10 text-zinc-400",
 };
 
 const QUOTA_LABELS: Record<string, string> = {
-  AIQ: "AIQ (15%)",
-  State: "State Quota",
-  Management: "Management Quota",
-  NRI: "NRI Quota",
-  Institutional: "Institutional",
+  AIQ: "AIQ",
+  State: "State",
+  Management: "Mgmt",
+  NRI: "NRI",
+  Institutional: "Inst.",
 };
+
+function formatStatus(status: string) {
+  return status
+    .split("_")
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(" ");
+}
 
 // ---------------------------------------------------------------------------
 // Page Component
@@ -122,19 +137,26 @@ const QUOTA_LABELS: Record<string, string> = {
 export default function AdmissionsPage() {
   const router = useRouter();
 
+  // Academic year state
+  const [selectedYear, setSelectedYear] = useState("2025-26");
+  const [showYearPicker, setShowYearPicker] = useState(false);
+  const admissionYear = parseInt(selectedYear.split("-")[0]);
+
   // Search + filters
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [quotaFilter, setQuotaFilter] = useState("all");
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(25);
+  const [pageSize] = useState(20);
 
   // New Admission dialog
   const [showNewAdmission, setShowNewAdmission] = useState(false);
 
   // Debounce search
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  );
   useEffect(() => {
     debounceRef.current = setTimeout(() => {
       setDebouncedSearch(search);
@@ -143,11 +165,17 @@ export default function AdmissionsPage() {
     return () => clearTimeout(debounceRef.current);
   }, [search]);
 
-  // --- Data hooks ---
-  const seatMatrix = useSeatMatrix();
-  const counselingRounds = useCounselingRounds();
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, quotaFilter, selectedYear]);
 
-  // Pipeline students — filter by admission statuses
+  // --- Data hooks ---
+  const seatMatrix = useSeatMatrix(selectedYear);
+  const counselingRounds = useCounselingRounds(admissionYear);
+  const pipelineSummary = usePipelineSummary(selectedYear);
+
+  // Pipeline students
   const statusParam =
     statusFilter === "all"
       ? ADMISSION_STATUSES.join(",")
@@ -159,49 +187,239 @@ export default function AdmissionsPage() {
     search: debouncedSearch || undefined,
     status: statusParam,
     admission_quota: quotaFilter === "all" ? undefined : quotaFilter,
+    admission_year: admissionYear,
+    sort_by: "neet_score",
+    sort_order: "desc",
   });
 
-  // NMC compliance count — students where nmc_uploaded is false
-  const nmcPendingCount = students.data?.data.filter(
-    (s) => s.nmc_uploaded === false && s.status === "enrolled",
-  ).length ?? 0;
-
+  const ps = pipelineSummary.data;
   const totalResults = students.data?.total ?? 0;
   const totalPages = students.data?.total_pages ?? 1;
+  const sm = seatMatrix.data;
+
+  // NMC pending: enrolled students with nmc_uploaded = false
+  const nmcPendingCount =
+    students.data?.data.filter(
+      (s) => s.nmc_uploaded === false && s.status === "enrolled"
+    ).length ?? 0;
+
+  // Status tab config with counts
+  const statusTabs = [
+    { value: "all", label: "All", count: ps?.total ?? 0 },
+    { value: "applied", label: "Applied", count: ps?.applied ?? 0 },
+    {
+      value: "documents_submitted",
+      label: "Docs Submitted",
+      count: ps?.documents_submitted ?? 0,
+    },
+    {
+      value: "under_verification",
+      label: "Verification",
+      count: ps?.under_verification ?? 0,
+    },
+    { value: "fee_pending", label: "Fee Pending", count: ps?.fee_pending ?? 0 },
+    { value: "enrolled", label: "Enrolled", count: ps?.enrolled ?? 0 },
+  ];
+
+  const yearOptions = ["2025-26", "2024-25", "2023-24", "2022-23"];
 
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">
-            Admissions Management
-          </h1>
-          <p className="mt-1 text-sm text-gray-400">
-            Manage intake, counseling rounds, and student onboarding.
+          <h1 className="text-xl font-semibold text-white">Admissions</h1>
+          <p className="mt-0.5 text-sm text-zinc-400">
+            {sm?.annual_intake ?? "—"} intake &middot; AY {selectedYear}
           </p>
         </div>
-        <button className="flex items-center gap-2 rounded-lg border border-dark-border bg-dark-surface px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:border-emerald-500">
-          <span className="text-gray-400">Academic Year:</span>
-          <span className="font-bold text-emerald-500">2025-26</span>
-          <ChevronDown className="h-4 w-4 text-gray-400" />
-        </button>
-      </div>
-
-      {/* Top Row: Seat Matrix + Counseling Schedule */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        <div className="lg:col-span-5">
-          {seatMatrix.isLoading ? (
-            <SeatMatrixSkeleton />
-          ) : seatMatrix.data ? (
-            <SeatMatrix quotas={seatMatrix.data} />
-          ) : (
-            <Card className="flex h-48 items-center justify-center">
-              <p className="text-sm text-gray-500">No seat matrix data available.</p>
-            </Card>
+        <div className="relative">
+          <button
+            className="flex items-center gap-2 rounded-lg border border-[#1E1E1E] bg-[#141414] px-4 py-2 text-sm transition-colors hover:border-emerald-500/50"
+            onClick={() => setShowYearPicker(!showYearPicker)}
+          >
+            <span className="text-zinc-400">AY:</span>
+            <span className="font-semibold text-white">{selectedYear}</span>
+            <ChevronDown className="h-4 w-4 text-zinc-400" />
+          </button>
+          {showYearPicker && (
+            <div className="absolute right-0 top-full z-20 mt-1 rounded-lg border border-[#1E1E1E] bg-[#141414] py-1 shadow-xl">
+              {yearOptions.map((yr) => (
+                <button
+                  key={yr}
+                  className={cn(
+                    "block w-full px-4 py-2 text-left text-sm transition-colors hover:bg-[#1E1E1E]",
+                    yr === selectedYear
+                      ? "text-emerald-400"
+                      : "text-zinc-300"
+                  )}
+                  onClick={() => {
+                    setSelectedYear(yr);
+                    setShowYearPicker(false);
+                  }}
+                >
+                  {yr}
+                </button>
+              ))}
+            </div>
           )}
         </div>
-        <div className="lg:col-span-7">
+      </div>
+
+      {/* Summary Stats Row */}
+      <div className="grid grid-cols-5 gap-3">
+        {[
+          {
+            label: "Sanctioned",
+            value: sm?.total_sanctioned,
+            Icon: Users,
+          },
+          {
+            label: "Admitted",
+            value: sm?.total_filled,
+            Icon: UserCheck,
+          },
+          {
+            label: "Vacant",
+            value: sm?.total_vacant,
+            Icon: UserMinus,
+            color:
+              (sm?.total_vacant ?? 0) > 0
+                ? "text-amber-400"
+                : "text-emerald-400",
+          },
+          {
+            label: "In Pipeline",
+            value:
+              (ps?.applied ?? 0) +
+              (ps?.documents_submitted ?? 0) +
+              (ps?.under_verification ?? 0) +
+              (ps?.fee_pending ?? 0),
+            Icon: Clock,
+          },
+          {
+            label: "NMC Pending",
+            value: nmcPendingCount || 0,
+            Icon: AlertTriangle,
+            color: "text-amber-400",
+          },
+        ].map((stat) => (
+          <div
+            key={stat.label}
+            className="rounded-lg border border-[#1E1E1E] bg-[#141414] px-4 py-3"
+          >
+            <div className="mb-1 flex items-center gap-2 text-zinc-400">
+              <stat.Icon className="h-4 w-4" />
+              <span className="text-xs uppercase tracking-wide">
+                {stat.label}
+              </span>
+            </div>
+            <div
+              className={cn(
+                "text-2xl font-semibold",
+                stat.color || "text-white"
+              )}
+            >
+              {seatMatrix.isLoading ? (
+                <div className="h-8 w-12 animate-pulse rounded bg-zinc-800" />
+              ) : (
+                (stat.value ?? "—")
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Seat Matrix + Counseling Rounds */}
+      <div className="grid grid-cols-5 gap-4">
+        {/* Seat Matrix — 3 cols */}
+        <div className="col-span-3 rounded-lg border border-[#1E1E1E] bg-[#141414] p-5">
+          <h2 className="mb-4 text-sm font-medium uppercase tracking-wide text-zinc-400">
+            Seat Matrix
+          </h2>
+          {seatMatrix.isLoading ? (
+            <SeatMatrixSkeleton />
+          ) : sm?.quotas ? (
+            <>
+              <div className="space-y-3">
+                {sm.quotas.map((q) => (
+                  <div key={q.quota} className="flex items-center gap-4">
+                    <span className="w-28 text-sm text-zinc-300">
+                      {q.quota}
+                    </span>
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#1E1E1E]">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all",
+                          q.fill_percentage >= 100
+                            ? "bg-emerald-500"
+                            : q.fill_percentage >= 75
+                              ? "bg-emerald-500/70"
+                              : q.fill_percentage >= 50
+                                ? "bg-amber-500"
+                                : "bg-red-500"
+                        )}
+                        style={{
+                          width: `${Math.min(q.fill_percentage, 100)}%`,
+                        }}
+                      />
+                    </div>
+                    <span className="w-20 text-right text-sm text-zinc-300">
+                      <span className="font-medium text-white">
+                        {q.filled_seats}
+                      </span>
+                      <span className="text-zinc-500">
+                        {" "}
+                        / {q.total_seats}
+                      </span>
+                    </span>
+                    <span className="w-20 text-right">
+                      {q.vacant_seats > 0 ? (
+                        <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400">
+                          {q.vacant_seats} vacant
+                        </span>
+                      ) : (
+                        <span className="text-xs text-emerald-500">Full</span>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {/* Total */}
+              <div className="mt-4 flex items-center gap-4 border-t border-[#1E1E1E] pt-3">
+                <span className="w-28 text-sm font-medium text-zinc-200">
+                  Total
+                </span>
+                <div className="flex-1" />
+                <span className="w-20 text-right text-sm text-zinc-300">
+                  <span className="font-semibold text-white">
+                    {sm.total_filled}
+                  </span>
+                  <span className="text-zinc-500">
+                    {" "}
+                    / {sm.total_sanctioned}
+                  </span>
+                </span>
+                <span className="w-20 text-right">
+                  {sm.total_vacant > 0 ? (
+                    <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400">
+                      {sm.total_vacant} vacant
+                    </span>
+                  ) : (
+                    <span className="text-xs text-emerald-500">Full</span>
+                  )}
+                </span>
+              </div>
+            </>
+          ) : (
+            <p className="py-8 text-center text-sm text-zinc-500">
+              No seat matrix data available.
+            </p>
+          )}
+        </div>
+
+        {/* Counseling Rounds — 2 cols */}
+        <div className="col-span-2">
           {counselingRounds.isLoading ? (
             <CounselingRoundsSkeleton />
           ) : counselingRounds.data ? (
@@ -210,126 +428,127 @@ export default function AdmissionsPage() {
               total={counselingRounds.data.total}
             />
           ) : (
-            <Card className="flex h-48 items-center justify-center">
-              <p className="text-sm text-gray-500">No counseling data available.</p>
+            <Card className="flex h-full items-center justify-center">
+              <p className="text-sm text-zinc-500">
+                No counseling data available.
+              </p>
             </Card>
           )}
         </div>
       </div>
 
-      {/* Admission Pipeline Table */}
-      <Card className="flex min-h-[500px] flex-col">
-        {/* Table Header + Filters */}
-        <div className="flex flex-col items-start justify-between gap-4 border-b border-dark-border p-5 sm:flex-row sm:items-center">
-          <div className="flex flex-col gap-1">
-            <h3 className="text-lg font-bold text-white">
-              Admission Pipeline
-            </h3>
-            <p className="text-xs text-gray-400">
-              {students.isLoading
-                ? "Loading..."
-                : `${totalResults} applicants across all quotas and counseling rounds.`}
-            </p>
+      {/* Admission Pipeline */}
+      <div>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-400">
+            Admission Pipeline
+          </h2>
+          <Button
+            size="sm"
+            className="bg-emerald-600 hover:bg-emerald-700"
+            onClick={() => setShowNewAdmission(true)}
+          >
+            <Plus className="mr-1 h-4 w-4" /> New Admission
+          </Button>
+        </div>
+
+        {/* Status filter tabs */}
+        <div className="mb-4 flex w-fit gap-1 rounded-lg border border-[#1E1E1E] bg-[#141414] p-1">
+          {statusTabs.map((t) => (
+            <button
+              key={t.value}
+              onClick={() => setStatusFilter(t.value)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors",
+                statusFilter === t.value
+                  ? "bg-[#1E1E1E] text-white"
+                  : "text-zinc-400 hover:text-zinc-300"
+              )}
+            >
+              {t.label}
+              {t.count > 0 && (
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.5 text-xs",
+                    statusFilter === t.value
+                      ? "bg-emerald-500/20 text-emerald-400"
+                      : "bg-[#1E1E1E] text-zinc-500"
+                  )}
+                >
+                  {t.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Search + quota filter */}
+        <div className="mb-4 flex gap-3">
+          <div className="relative max-w-sm flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+            <input
+              className="w-full rounded-lg border border-[#1E1E1E] bg-[#141414] py-2 pl-9 pr-4 text-sm text-white placeholder-zinc-500 outline-none transition-all focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              placeholder="Search by name, phone, NEET roll..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
-          <div className="flex w-full flex-wrap gap-3 sm:w-auto">
-            {/* Search */}
-            <div className="relative flex-grow sm:flex-grow-0">
-              <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-                <Search className="h-4 w-4" />
-              </span>
-              <input
-                className="w-full rounded-lg border border-dark-border bg-dark-elevated py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 outline-none transition-all focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 sm:w-64"
-                placeholder="Search Name, Roll No..."
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-
-            {/* Status Filter */}
-            <select
-              className="rounded-lg border border-dark-border bg-dark-elevated px-3 py-2 text-sm text-gray-300 outline-none focus:border-emerald-500"
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPage(1);
-              }}
+          <select
+            className="rounded-lg border border-[#1E1E1E] bg-[#141414] px-3 py-2 text-sm text-zinc-300 outline-none focus:border-emerald-500"
+            value={quotaFilter}
+            onChange={(e) => setQuotaFilter(e.target.value)}
+          >
+            <option value="all">All Quotas</option>
+            <option value="AIQ">AIQ</option>
+            <option value="State">State</option>
+            <option value="Management">Management</option>
+            <option value="NRI">NRI</option>
+          </select>
+          <div className="flex items-center gap-2 border-l border-[#1E1E1E] pl-3">
+            <button
+              className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-[#1E1E1E] hover:text-white"
+              title="Import CSV"
             >
-              <option value="all">Status: All</option>
-              {ADMISSION_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {PIPELINE_CONFIG[s].label}
-                </option>
-              ))}
-            </select>
-
-            {/* Quota Filter */}
-            <select
-              className="hidden rounded-lg border border-dark-border bg-dark-elevated px-3 py-2 text-sm text-gray-300 outline-none focus:border-emerald-500 md:block"
-              value={quotaFilter}
-              onChange={(e) => {
-                setQuotaFilter(e.target.value);
-                setPage(1);
-              }}
+              <Upload className="h-4 w-4" />
+            </button>
+            <button
+              className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-[#1E1E1E] hover:text-white"
+              title="Export"
             >
-              <option value="all">Quota: All</option>
-              <option value="AIQ">AIQ</option>
-              <option value="State">State</option>
-              <option value="Management">Management</option>
-              <option value="NRI">NRI</option>
-            </select>
-
-            {/* New Admission */}
-            <Button
-              size="sm"
-              className="shadow-lg shadow-emerald-500/20"
-              onClick={() => setShowNewAdmission(true)}
-            >
-              <Plus className="h-4 w-4" />
-              New Admission
-            </Button>
-
-            {/* Toolbar actions */}
-            <div className="flex items-center gap-2 border-l border-dark-border pl-3">
-              <button
-                className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-dark-elevated hover:text-white"
-                title="Import CSV"
-                aria-label="Import admissions"
-              >
-                <Upload className="h-4 w-4" />
-              </button>
-              <button
-                className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-dark-elevated hover:text-white"
-                title="Export"
-                aria-label="Export admissions"
-              >
-                <Download className="h-4 w-4" />
-              </button>
-              <button
-                className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-dark-elevated hover:text-white"
-                title="Bulk Verify"
-                aria-label="Bulk verify admissions"
-              >
-                <ClipboardCheck className="h-4 w-4" />
-              </button>
-            </div>
+              <Download className="h-4 w-4" />
+            </button>
           </div>
         </div>
 
         {/* Table */}
-        <div className="flex-1 overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-dark-border bg-dark-elevated text-[10px] uppercase text-gray-500">
-              <tr>
-                <th className="w-16 px-6 py-4 font-medium">S.No</th>
-                <th className="px-6 py-4 font-medium">Candidate Name</th>
-                <th className="px-6 py-4 font-medium">NEET Details</th>
-                <th className="px-6 py-4 font-medium">Category / Quota</th>
-                <th className="px-6 py-4 font-medium">Pipeline Status</th>
-                <th className="px-6 py-4 text-right font-medium">Actions</th>
+        <div className="overflow-hidden rounded-lg border border-[#1E1E1E] bg-[#141414]">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-[#1E1E1E]">
+                <th className="w-12 px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-zinc-500">
+                  #
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-zinc-500">
+                  Candidate
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-zinc-500">
+                  NEET Details
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-zinc-500">
+                  Category / Quota
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-zinc-500">
+                  Round
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-zinc-500">
+                  Status
+                </th>
+                <th className="w-20 px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-zinc-500">
+                  Actions
+                </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-dark-border">
+            <tbody>
               {students.isLoading ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <SkeletonRow key={i} />
@@ -342,7 +561,7 @@ export default function AdmissionsPage() {
                     index={(page - 1) * pageSize + idx + 1}
                     onView={() =>
                       router.push(
-                        `/dashboard/admin/students/records/${student.id}`,
+                        `/dashboard/admin/students/records/${student.id}`
                       )
                     }
                   />
@@ -350,82 +569,73 @@ export default function AdmissionsPage() {
               ) : (
                 <tr>
                   <td
-                    colSpan={6}
-                    className="px-6 py-12 text-center text-sm text-gray-500"
+                    colSpan={7}
+                    className="px-4 py-12 text-center"
                   >
-                    {students.isError
-                      ? "Failed to load admission pipeline."
-                      : "No candidates match your filters."}
+                    <Users className="mx-auto mb-3 h-8 w-8 text-zinc-600" />
+                    <p className="text-sm text-zinc-400">
+                      {students.isError
+                        ? "Failed to load admission pipeline."
+                        : "No candidates match your filters."}
+                    </p>
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
-        </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-dark-border px-6 py-4">
-            <p className="text-xs text-gray-400">
-              Showing{" "}
-              <span className="font-medium text-white">
-                {(page - 1) * pageSize + 1}
-              </span>{" "}
-              to{" "}
-              <span className="font-medium text-white">
-                {Math.min(page * pageSize, totalResults)}
-              </span>{" "}
-              of{" "}
-              <span className="font-medium text-white">{totalResults}</span>{" "}
-              results
-            </p>
-            <div className="flex gap-2">
-              <button
-                className="rounded border border-dark-border bg-dark-elevated px-3 py-1 text-sm text-gray-400 hover:bg-gray-800 disabled:opacity-50"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              {Array.from({ length: Math.min(totalPages, 5) }).map((_, i) => {
-                const pageNum = i + 1;
-                return (
-                  <button
-                    key={pageNum}
-                    className={cn(
-                      "rounded px-3 py-1 text-sm",
-                      pageNum === page
-                        ? "bg-emerald-500 font-medium text-white shadow-md shadow-emerald-500/20"
-                        : "border border-dark-border bg-dark-elevated text-gray-400 hover:bg-gray-800",
-                    )}
-                    onClick={() => setPage(pageNum)}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-              {totalPages > 5 && (
-                <span className="px-2 py-1 text-sm text-gray-500">...</span>
-              )}
-              <button
-                className="rounded border border-dark-border bg-dark-elevated px-3 py-1 text-sm text-gray-400 hover:bg-gray-800 disabled:opacity-50"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
+          {/* Pagination */}
+          {totalResults > 0 && (
+            <div className="flex items-center justify-between border-t border-[#1E1E1E] px-4 py-3">
+              <span className="text-xs text-zinc-500">
+                Showing {(page - 1) * pageSize + 1}–
+                {Math.min(page * pageSize, totalResults)} of {totalResults}
+              </span>
+              <div className="flex gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page === 1}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* NMC Compliance Banner */}
+      {nmcPendingCount > 0 && (
+        <div className="flex items-center justify-between rounded-lg border border-amber-500/20 bg-amber-500/5 p-4">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 flex-shrink-0 text-amber-400" />
+            <div>
+              <p className="text-sm text-amber-200">
+                {nmcPendingCount} students pending NMC portal upload
+              </p>
+              <p className="mt-0.5 text-xs text-amber-400/70">
+                All admissions must be uploaded within 15 days of reporting
+              </p>
             </div>
           </div>
-        )}
-      </Card>
-
-      {/* NMC Compliance Alert Bar */}
-      {nmcPendingCount > 0 && (
-        <ComplianceAlertBar
-          title="NMC Compliance Check Required"
-          description={`${nmcPendingCount} enrolled student${nmcPendingCount !== 1 ? "s" : ""} pending NMC portal upload.`}
-          actionLabel="Upload Now"
-        />
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+          >
+            Upload Now
+          </Button>
+        </div>
       )}
 
       {/* New Admission Dialog */}
@@ -451,7 +661,8 @@ function CandidateRow({
   onView: () => void;
 }) {
   const pipeline =
-    PIPELINE_CONFIG[student.status as PipelineStatus] ?? PIPELINE_CONFIG.applied;
+    PIPELINE_CONFIG[student.status as PipelineStatus] ??
+    PIPELINE_CONFIG.applied;
 
   const initials = student.name
     .split(" ")
@@ -460,68 +671,46 @@ function CandidateRow({
     .join("")
     .toUpperCase();
 
-  const startLabel =
-    student.status === "enrolled"
-      ? "Fee Paid"
-      : student.status === "fee_pending"
-        ? "Docs Verified"
-        : "Applied";
-
   return (
-    <tr className="group transition-colors hover:bg-dark-elevated/40">
-      <td className="px-6 py-4 text-gray-500">
-        {String(index).padStart(2, "0")}
-      </td>
-      <td className="px-6 py-4">
+    <tr className="border-b border-[#1E1E1E] transition-colors hover:bg-[#1A1A1A]">
+      <td className="px-4 py-3 text-sm text-zinc-500">{index}</td>
+      <td className="px-4 py-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gray-700 ring-2 ring-transparent transition-all group-hover:ring-emerald-500/50">
-            <span className="text-sm font-bold text-white">{initials}</span>
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-700 text-xs font-bold text-white">
+            {initials}
           </div>
           <div>
-            <div className="font-medium text-white">{student.name}</div>
-            <div className="text-xs text-gray-500">
-              {student.enrollment_number
-                ? `ID: ${student.enrollment_number}`
-                : student.counseling_round ?? "—"}
+            <div className="text-sm font-medium text-white">
+              {student.name}
+            </div>
+            <div className="text-xs text-zinc-500">
+              {student.phone || student.email || "—"}
             </div>
           </div>
         </div>
       </td>
-      <td className="px-6 py-4">
-        <div className="flex flex-col gap-1">
-          {student.neet_roll_number && (
-            <div className="text-xs text-gray-500">
-              Roll:{" "}
-              <span className="font-mono text-gray-300">
-                {student.neet_roll_number}
-              </span>
-            </div>
-          )}
-          <div className="flex gap-3">
-            {student.neet_score != null && (
-              <span className="rounded bg-emerald-500/10 px-1.5 text-xs font-medium text-emerald-500">
-                Score: {student.neet_score}
-              </span>
-            )}
-            {student.neet_rank != null && (
-              <span className="rounded bg-gray-800 px-1.5 text-xs font-medium text-gray-400">
-                Rank: {student.neet_rank.toLocaleString("en-IN")}
-              </span>
-            )}
-          </div>
-          {!student.neet_score && !student.neet_rank && (
-            <span className="text-xs text-gray-600">No NEET data</span>
+      <td className="px-4 py-3">
+        <div className="text-sm text-white">
+          {student.neet_score ?? "—"}
+          {student.neet_rank != null && (
+            <span className="text-zinc-500">
+              {" "}
+              / {student.neet_rank.toLocaleString("en-IN")}
+            </span>
           )}
         </div>
+        <div className="text-xs text-zinc-500">
+          {student.neet_roll_number || "—"}
+        </div>
       </td>
-      <td className="px-6 py-4">
-        <div className="flex flex-col items-start gap-1.5">
+      <td className="px-4 py-3">
+        <div className="flex gap-1.5">
           {student.category && (
             <span
               className={cn(
-                "inline-flex items-center rounded border px-2 py-0.5 text-xs font-medium",
+                "rounded-full px-2 py-0.5 text-xs",
                 CATEGORY_STYLES[student.category] ??
-                  "border-gray-700 bg-gray-800 text-gray-400",
+                  "bg-zinc-500/10 text-zinc-400"
               )}
             >
               {student.category}
@@ -530,50 +719,44 @@ function CandidateRow({
           {student.admission_quota && (
             <span
               className={cn(
-                "inline-flex items-center rounded border px-2 py-0.5 text-xs font-medium",
+                "rounded-full px-2 py-0.5 text-xs",
                 QUOTA_STYLES[student.admission_quota] ??
-                  "border-gray-700 bg-gray-800 text-gray-400",
+                  "bg-zinc-500/10 text-zinc-400"
               )}
             >
               {QUOTA_LABELS[student.admission_quota] ??
-                `${student.admission_quota} Quota`}
+                student.admission_quota}
             </span>
-          )}
-          {!student.category && !student.admission_quota && (
-            <span className="text-xs text-gray-600">—</span>
           )}
         </div>
       </td>
-      <td className="px-6 py-4">
-        <div className="w-full max-w-[140px]">
-          <div className="mb-1 flex justify-between text-[10px] text-gray-500">
-            <span>{startLabel}</span>
-            <span className={cn("font-bold", pipeline.textColor)}>
-              {pipeline.label}
-            </span>
-          </div>
-          <div className="h-1.5 w-full rounded-full bg-gray-700">
-            <div
-              className={cn(
-                "h-1.5 rounded-full transition-all",
-                pipeline.color,
-              )}
-              style={{ width: `${pipeline.progress}%` }}
-            />
-          </div>
-        </div>
+      <td className="px-4 py-3 text-sm text-zinc-300">
+        {student.counseling_round || "—"}
       </td>
-      <td className="px-6 py-4 text-right">
+      <td className="px-4 py-3">
+        <span
+          className={cn(
+            "inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs",
+            pipeline.color
+          )}
+        >
+          <span
+            className={cn("h-1.5 w-1.5 rounded-full", pipeline.dotColor)}
+          />
+          {formatStatus(student.status)}
+        </span>
+      </td>
+      <td className="px-4 py-3">
         <button
-          className="p-1 text-gray-400 transition-colors hover:text-emerald-500"
-          aria-label={`View ${student.name}`}
+          className="p-1 text-zinc-400 transition-colors hover:text-emerald-500"
           onClick={onView}
+          title="View profile"
         >
           <Eye className="h-4 w-4" />
         </button>
         <button
-          className="ml-2 p-1 text-gray-400 transition-colors hover:text-emerald-500"
-          aria-label={`More actions for ${student.name}`}
+          className="ml-1 p-1 text-zinc-400 transition-colors hover:text-emerald-500"
+          title="More actions"
         >
           <MoreVertical className="h-4 w-4" />
         </button>
@@ -715,7 +898,7 @@ function NewAdmissionDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl border-dark-border bg-dark-surface text-white">
+      <DialogContent className="max-w-2xl border-[#1E1E1E] bg-[#0A0A0A] text-white">
         <DialogHeader>
           <DialogTitle>New Admission</DialogTitle>
         </DialogHeader>
@@ -731,23 +914,27 @@ function NewAdmissionDialog({
                     ? "bg-emerald-500 text-white"
                     : i === currentStepIdx
                       ? "bg-emerald-500/20 text-emerald-400 ring-2 ring-emerald-500"
-                      : "bg-dark-elevated text-gray-500",
+                      : "bg-[#1E1E1E] text-zinc-500"
                 )}
               >
-                {i + 1}
+                {i < currentStepIdx ? (
+                  <Check className="h-3.5 w-3.5" />
+                ) : (
+                  i + 1
+                )}
               </div>
               {i < FORM_STEPS.length - 1 && (
                 <div
                   className={cn(
                     "mx-1 h-0.5 flex-1",
-                    i < currentStepIdx ? "bg-emerald-500" : "bg-gray-700",
+                    i < currentStepIdx ? "bg-emerald-500" : "bg-zinc-700"
                   )}
                 />
               )}
             </div>
           ))}
         </div>
-        <p className="mb-4 text-sm text-gray-400">
+        <p className="mb-4 text-sm text-zinc-400">
           Step {currentStepIdx + 1} of {FORM_STEPS.length} —{" "}
           {FORM_STEPS[currentStepIdx].label}
         </p>
@@ -773,7 +960,7 @@ function NewAdmissionDialog({
         </div>
 
         {/* Actions */}
-        <div className="mt-4 flex justify-between border-t border-dark-border pt-4">
+        <div className="mt-4 flex justify-between border-t border-[#1E1E1E] pt-4">
           <Button
             variant="outline"
             size="sm"
@@ -822,7 +1009,7 @@ function FormField({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-xs font-medium text-gray-400">
+      <label className="mb-1 block text-xs font-medium text-zinc-400">
         {label}
       </label>
       {children}
@@ -831,9 +1018,9 @@ function FormField({
 }
 
 const inputCls =
-  "w-full rounded-lg border border-dark-border bg-dark-elevated px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500";
+  "w-full rounded-lg border border-[#1E1E1E] bg-[#141414] px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500";
 const selectCls =
-  "w-full rounded-lg border border-dark-border bg-dark-elevated px-3 py-2 text-sm text-gray-300 outline-none focus:border-emerald-500";
+  "w-full rounded-lg border border-[#1E1E1E] bg-[#141414] px-3 py-2 text-sm text-zinc-300 outline-none focus:border-emerald-500";
 
 function PersonalStep({
   form,
@@ -889,9 +1076,9 @@ function PersonalStep({
             onChange={(e) => update("gender", e.target.value)}
           >
             <option value="">Select</option>
-            <option value="M">Male</option>
-            <option value="F">Female</option>
-            <option value="Other">Other</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
           </select>
         </FormField>
         <FormField label="Category">
@@ -903,7 +1090,6 @@ function PersonalStep({
             <option value="">Select</option>
             <option value="General">General</option>
             <option value="OBC">OBC</option>
-            <option value="OBC-NCL">OBC-NCL</option>
             <option value="SC">SC</option>
             <option value="ST">ST</option>
             <option value="EWS">EWS</option>
@@ -936,7 +1122,7 @@ function NeetStep({
         <FormField label="NEET Roll Number">
           <input
             className={inputCls}
-            placeholder="e.g., 23059124"
+            placeholder="e.g., 2025-KA-123456"
             value={form.neet_roll_number}
             onChange={(e) => update("neet_roll_number", e.target.value)}
           />
@@ -1086,10 +1272,7 @@ function ReviewStep({ form }: { form: AdmissionFormData }) {
     {
       title: "Admission Info",
       items: [
-        {
-          label: "Quota",
-          value: QUOTA_LABELS[form.admission_quota] || form.admission_quota,
-        },
+        { label: "Quota", value: form.admission_quota },
         { label: "Round", value: form.counseling_round },
         { label: "Date", value: form.admission_date },
         { label: "Year", value: form.admission_year },
@@ -1100,21 +1283,24 @@ function ReviewStep({ form }: { form: AdmissionFormData }) {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-400">
+      <p className="text-sm text-zinc-400">
         Review the details below before submitting. The student will be created
         with <strong className="text-yellow-400">Applied</strong> status.
       </p>
       {sections.map((section) => (
         <div key={section.title}>
-          <h4 className="mb-2 text-xs font-semibold uppercase text-gray-500">
+          <h4 className="mb-2 text-xs font-semibold uppercase text-zinc-500">
             {section.title}
           </h4>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1">
             {section.items
               .filter((i) => i.value)
               .map((item) => (
-                <div key={item.label} className="flex justify-between text-sm">
-                  <span className="text-gray-500">{item.label}:</span>
+                <div
+                  key={item.label}
+                  className="flex justify-between text-sm"
+                >
+                  <span className="text-zinc-500">{item.label}:</span>
                   <span className="text-white">{item.value}</span>
                 </div>
               ))}
@@ -1131,39 +1317,39 @@ function ReviewStep({ form }: { form: AdmissionFormData }) {
 
 function SkeletonRow() {
   return (
-    <tr className="animate-pulse">
-      <td className="px-6 py-4">
-        <div className="h-4 w-6 rounded bg-gray-800" />
+    <tr className="animate-pulse border-b border-[#1E1E1E]">
+      <td className="px-4 py-3">
+        <div className="h-4 w-6 rounded bg-zinc-800" />
       </td>
-      <td className="px-6 py-4">
+      <td className="px-4 py-3">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-gray-800" />
+          <div className="h-9 w-9 rounded-full bg-zinc-800" />
           <div className="space-y-1">
-            <div className="h-4 w-28 rounded bg-gray-800" />
-            <div className="h-3 w-20 rounded bg-gray-800" />
+            <div className="h-4 w-28 rounded bg-zinc-800" />
+            <div className="h-3 w-20 rounded bg-zinc-800" />
           </div>
         </div>
       </td>
-      <td className="px-6 py-4">
+      <td className="px-4 py-3">
         <div className="space-y-1">
-          <div className="h-3 w-24 rounded bg-gray-800" />
-          <div className="h-3 w-32 rounded bg-gray-800" />
+          <div className="h-3 w-24 rounded bg-zinc-800" />
+          <div className="h-3 w-16 rounded bg-zinc-800" />
         </div>
       </td>
-      <td className="px-6 py-4">
-        <div className="space-y-1">
-          <div className="h-5 w-16 rounded bg-gray-800" />
-          <div className="h-5 w-20 rounded bg-gray-800" />
+      <td className="px-4 py-3">
+        <div className="flex gap-1.5">
+          <div className="h-5 w-14 rounded-full bg-zinc-800" />
+          <div className="h-5 w-12 rounded-full bg-zinc-800" />
         </div>
       </td>
-      <td className="px-6 py-4">
-        <div className="w-full max-w-[140px] space-y-1">
-          <div className="h-3 w-full rounded bg-gray-800" />
-          <div className="h-1.5 w-full rounded bg-gray-800" />
-        </div>
+      <td className="px-4 py-3">
+        <div className="h-4 w-16 rounded bg-zinc-800" />
       </td>
-      <td className="px-6 py-4 text-right">
-        <div className="inline-block h-5 w-10 rounded bg-gray-800" />
+      <td className="px-4 py-3">
+        <div className="h-5 w-20 rounded-full bg-zinc-800" />
+      </td>
+      <td className="px-4 py-3">
+        <div className="h-5 w-10 rounded bg-zinc-800" />
       </td>
     </tr>
   );
@@ -1171,31 +1357,27 @@ function SkeletonRow() {
 
 function SeatMatrixSkeleton() {
   return (
-    <Card className="animate-pulse">
-      <div className="border-b border-dark-border px-5 py-4">
-        <div className="h-5 w-28 rounded bg-gray-800" />
-      </div>
-      <div className="space-y-3 p-5">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-4">
-            <div className="h-4 w-24 rounded bg-gray-800" />
-            <div className="h-1.5 flex-1 rounded bg-gray-800" />
-          </div>
-        ))}
-      </div>
-    </Card>
+    <div className="space-y-3">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="flex animate-pulse items-center gap-4">
+          <div className="h-4 w-28 rounded bg-zinc-800" />
+          <div className="h-2 flex-1 rounded bg-zinc-800" />
+          <div className="h-4 w-16 rounded bg-zinc-800" />
+        </div>
+      ))}
+    </div>
   );
 }
 
 function CounselingRoundsSkeleton() {
   return (
     <Card className="animate-pulse p-6">
-      <div className="mb-8 h-5 w-40 rounded bg-gray-800" />
+      <div className="mb-8 h-5 w-40 rounded bg-zinc-800" />
       <div className="flex justify-between">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="flex flex-col items-center gap-2">
-            <div className="h-10 w-10 rounded-full bg-gray-800" />
-            <div className="h-3 w-16 rounded bg-gray-800" />
+            <div className="h-10 w-10 rounded-full bg-zinc-800" />
+            <div className="h-3 w-16 rounded bg-zinc-800" />
           </div>
         ))}
       </div>

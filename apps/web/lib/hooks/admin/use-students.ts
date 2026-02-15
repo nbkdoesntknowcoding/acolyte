@@ -17,7 +17,14 @@ import {
 } from '@tanstack/react-query';
 import { createAdminFetcher } from '@/lib/api/admin-client-browser';
 import { useAdminList, useAdminDetail, useAdminCreate, useAdminUpdate, useAdminDelete } from '@/lib/hooks/use-admin-query';
-import type { StudentResponse, StudentCreate, StudentUpdate, PaginatedResponse, SeatMatrixItem } from '@/types/admin-api';
+import type {
+  StudentResponse,
+  StudentCreate,
+  StudentUpdate,
+  PaginatedResponse,
+  SeatMatrixResponse,
+  PipelineSummary,
+} from '@/types/admin-api';
 
 // ---------------------------------------------------------------------------
 // Student list params
@@ -30,6 +37,7 @@ export interface StudentListParams {
   status?: string;
   current_phase?: string;
   admission_quota?: string;
+  admission_year?: number;
   batch_id?: string;
   sort_by?: string;
   sort_order?: 'asc' | 'desc';
@@ -66,19 +74,32 @@ export function useDeleteStudent(): UseMutationResult<void, Error, string> {
 // Seat matrix
 // ---------------------------------------------------------------------------
 
-export interface SeatMatrixResponse {
-  quotas: SeatMatrixItem[];
-  total_sanctioned: number;
-  total_filled: number;
-}
-
-export function useSeatMatrix(): UseQueryResult<SeatMatrixItem[]> {
+export function useSeatMatrix(
+  academicYear: string = '2025-26'
+): UseQueryResult<SeatMatrixResponse> {
   const { getToken } = useAuth();
   const fetcher = createAdminFetcher(getToken);
   return useQuery({
-    queryKey: ['admin', 'students', 'seat-matrix'],
-    queryFn: () => fetcher<SeatMatrixItem[]>('/students/seat-matrix'),
+    queryKey: ['admin', 'students', 'seat-matrix', academicYear],
+    queryFn: () =>
+      fetcher<SeatMatrixResponse>(`/students/seat-matrix?academic_year=${academicYear}`),
     refetchInterval: 120_000,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline summary (status counts for tab badges)
+// ---------------------------------------------------------------------------
+
+export function usePipelineSummary(
+  academicYear: string = '2025-26'
+): UseQueryResult<PipelineSummary> {
+  const { getToken } = useAuth();
+  const fetcher = createAdminFetcher(getToken);
+  return useQuery({
+    queryKey: ['admin', 'admissions', 'pipeline-summary', academicYear],
+    queryFn: () =>
+      fetcher<PipelineSummary>(`/admissions/pipeline-summary?academic_year=${academicYear}`),
   });
 }
 
