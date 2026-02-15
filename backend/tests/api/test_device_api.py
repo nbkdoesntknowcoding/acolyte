@@ -219,13 +219,17 @@ class TestStatusPoll:
 
         _override_deps(mock_user, mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-            ) as client:
-                resp = await client.get(
-                    f"/api/v1/device/status?verification_id={device.id}",
-                )
+            # Patch get_settings at the service module level (not just FastAPI DI)
+            # to prevent dev-mode auto-verify from comparing MagicMock datetimes
+            with patch("app.shared.services.device_trust_service.get_settings") as mock_gs:
+                mock_gs.return_value = MagicMock(DEVICE_TRUST_DEV_MODE=False)
+                async with AsyncClient(
+                    transport=ASGITransport(app=app),
+                    base_url="http://test",
+                ) as client:
+                    resp = await client.get(
+                        f"/api/v1/device/status?verification_id={device.id}",
+                    )
             assert resp.status_code == 200
             data = resp.json()
             assert data["status"] == "pending"
