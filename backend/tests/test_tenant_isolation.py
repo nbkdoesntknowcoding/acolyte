@@ -86,12 +86,12 @@ async def setup_test_colleges(owner_engine):
         ])
 
         await conn.execute(text("""
-            INSERT INTO departments (id, college_id, name, code)
-            VALUES (:id, :cid, :name, :code)
+            INSERT INTO departments (id, college_id, name, code, nmc_department_type)
+            VALUES (:id, :cid, :name, :code, :dept_type)
             ON CONFLICT (id) DO NOTHING
         """), [
-            {"id": str(dept_a_id), "cid": str(COLLEGE_A_ID), "name": "Anatomy A", "code": "ANAT-A"},
-            {"id": str(dept_b_id), "cid": str(COLLEGE_B_ID), "name": "Anatomy B", "code": "ANAT-B"},
+            {"id": str(dept_a_id), "cid": str(COLLEGE_A_ID), "name": "Anatomy A", "code": "ANAT-A", "dept_type": "preclinical"},
+            {"id": str(dept_b_id), "cid": str(COLLEGE_B_ID), "name": "Anatomy B", "code": "ANAT-B", "dept_type": "preclinical"},
         ])
 
     yield {"dept_a_id": dept_a_id, "dept_b_id": dept_b_id}
