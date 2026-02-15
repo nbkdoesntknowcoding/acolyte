@@ -6,6 +6,7 @@ primary_region = "bom"
 
 [deploy]
   release_command = "alembic upgrade head"
+  release_command_timeout = "300s"
 
 [env]
   ENVIRONMENT = "production"
