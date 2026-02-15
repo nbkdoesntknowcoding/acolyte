@@ -211,7 +211,7 @@ class TestValidationErrorHandler:
         """POST with missing required fields should return 422 with field details."""
         _setup_auth(_make_user())
         response = await client.post(
-            "/api/v1/departments/",
+            "/api/v1/admin/departments/",
             json={"name": "Anatomy"},  # missing code, nmc_department_type
         )
         assert response.status_code == 422
@@ -229,7 +229,7 @@ class TestValidationErrorHandler:
         """POST with wrong type should return 422 with field details."""
         _setup_auth(_make_user())
         response = await client.post(
-            "/api/v1/departments/",
+            "/api/v1/admin/departments/",
             json={
                 "name": "Anatomy",
                 "code": "ANAT",
@@ -253,7 +253,7 @@ class TestHTTPExceptionHandler:
     async def test_no_bearer_token(self, client):
         """Request without Bearer token should return 403 with error envelope."""
         # Don't set up auth — HTTPBearer(auto_error=True) raises HTTPException(403)
-        response = await client.get("/api/v1/departments/")
+        response = await client.get("/api/v1/admin/departments/")
         assert response.status_code == 403
         data = response.json()
         assert_error_envelope(data, "FORBIDDEN")
@@ -262,7 +262,7 @@ class TestHTTPExceptionHandler:
         """Role denial (HTTPException from require_role) should be wrapped."""
         _setup_auth(_make_user(role=UserRole.STUDENT))
         response = await client.post(
-            "/api/v1/departments/",
+            "/api/v1/admin/departments/",
             json={"name": "Anatomy", "code": "ANAT", "nmc_department_type": "preclinical"},
         )
         assert response.status_code == 403
