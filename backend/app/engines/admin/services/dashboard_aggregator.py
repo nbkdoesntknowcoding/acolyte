@@ -184,9 +184,9 @@ class DashboardAggregatorService:
                 "action": a.action,
                 "entity_type": a.entity_type,
                 "entity_id": str(a.entity_id) if a.entity_id else None,
-                "user_name": a.user_name,
-                "user_role": a.user_role,
+                "user_id": str(a.user_id) if a.user_id else None,
                 "changes": a.changes,
+                "ip_address": a.ip_address,
                 "timestamp": a.created_at.isoformat() if a.created_at else None,
             }
             for a in activities
